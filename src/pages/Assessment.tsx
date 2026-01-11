@@ -7,6 +7,7 @@ import { PhoneFrame } from '@/components/phone/PhoneFrame';
 import { LockScreen } from '@/components/phone/LockScreen';
 import { HomeScreen } from '@/components/phone/HomeScreen';
 import { MessagesApp } from '@/components/phone/MessagesApp';
+import { AppStoreScreen } from '@/components/phone/AppStoreScreen';
 import { NotificationBanner } from '@/components/phone/NotificationBanner';
 import { PatientPortal } from '@/components/portal/PatientPortal';
 import { StepTracker } from '@/components/assessment/StepTracker';
@@ -133,7 +134,13 @@ const Assessment: React.FC = () => {
       setAutomatedScore(2);
       setStepCompleted(true);
     } else if (currentStep?.id === 'eadl1-step6' && appId === 'appstore' && !stepCompleted) {
+      // Just open the App Store - scoring happens when user downloads Zoom
       setPhoneScreen('app-store');
+    }
+  }, [currentStep, stepCompleted]);
+
+  const handleDownloadApp = useCallback((appId: string) => {
+    if (currentStep?.id === 'eadl1-step6' && appId === 'zoom' && !stepCompleted) {
       setAutomatedScore(2);
       setStepCompleted(true);
     }
@@ -354,6 +361,18 @@ const Assessment: React.FC = () => {
                       simpleMode={simpleMode}
                       showHint={showHints}
                       currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
+                    />
+                  )}
+                  
+                  {/* App Store */}
+                  {phoneScreen === 'app-store' && (
+                    <AppStoreScreen
+                      onBack={() => setPhoneScreen('home')}
+                      onDownloadApp={handleDownloadApp}
+                      onMisclick={() => handleMisclick('targeting')}
+                      targetApp="zoom"
+                      simpleMode={simpleMode}
+                      showHint={showHints}
                     />
                   )}
                   
