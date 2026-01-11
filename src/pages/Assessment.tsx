@@ -47,6 +47,7 @@ const Assessment: React.FC = () => {
   const [showOpenEnded, setShowOpenEnded] = useState(false);
   const [automatedScore, setAutomatedScore] = useState<Score | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [stepCompleted, setStepCompleted] = useState(false);
 
   const context = getCurrentContext();
   const currentModule = context?.module;
@@ -67,9 +68,17 @@ const Assessment: React.FC = () => {
     }
   }, [isRunning, session, startAssessment]);
 
+  // Show notification when entering step 5 (respond to notification)
+  useEffect(() => {
+    if (currentStep?.id === 'eadl1-step5' && !stepCompleted) {
+      setShowNotification(true);
+    }
+  }, [currentStep?.id, stepCompleted]);
+
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
     setAutomatedScore(null);
+    setStepCompleted(false);
     completeStep(score);
     
     // Check if module is complete
@@ -80,47 +89,47 @@ const Assessment: React.FC = () => {
 
   // Handle phone interactions
   const handleUnlock = useCallback(() => {
-    if (currentStep?.id === 'eadl1-step1') {
+    if (currentStep?.id === 'eadl1-step1' && !stepCompleted) {
       setPhoneScreen('home');
       setAutomatedScore(2);
+      setStepCompleted(true);
     }
-  }, [currentStep]);
+  }, [currentStep, stepCompleted]);
 
   const handleAppTap = useCallback((appId: string) => {
-    if (currentStep?.id === 'eadl1-step2' && appId === 'messages') {
+    if (currentStep?.id === 'eadl1-step2' && appId === 'messages' && !stepCompleted) {
       setPhoneScreen('messages');
       setAutomatedScore(2);
-    } else if (currentStep?.id === 'eadl1-step6' && appId === 'appstore') {
+      setStepCompleted(true);
+    } else if (currentStep?.id === 'eadl1-step6' && appId === 'appstore' && !stepCompleted) {
       setPhoneScreen('app-store');
       setAutomatedScore(2);
+      setStepCompleted(true);
     }
-  }, [currentStep]);
+  }, [currentStep, stepCompleted]);
 
   const handleContactSelect = useCallback((contactId: string) => {
-    if (currentStep?.id === 'eadl1-step3' && contactId === 'dr-smith') {
+    if (currentStep?.id === 'eadl1-step3' && contactId === 'dr-smith' && !stepCompleted) {
       setPhoneScreen('messages-conversation');
       setAutomatedScore(2);
+      setStepCompleted(true);
     }
-  }, [currentStep]);
+  }, [currentStep, stepCompleted]);
 
   const handleSendMessage = useCallback((message: string) => {
-    if (currentStep?.id === 'eadl1-step4') {
-      setShowNotification(true);
+    if (currentStep?.id === 'eadl1-step4' && !stepCompleted) {
       setAutomatedScore(2);
-      
-      // Simulate notification after delay
-      setTimeout(() => {
-        // Ready for step 5
-      }, 1500);
+      setStepCompleted(true);
     }
-  }, [currentStep]);
+  }, [currentStep, stepCompleted]);
 
   const handleNotificationTap = useCallback(() => {
-    if (currentStep?.id === 'eadl1-step5') {
+    if (currentStep?.id === 'eadl1-step5' && !stepCompleted) {
       setShowNotification(false);
       setAutomatedScore(2);
+      setStepCompleted(true);
     }
-  }, [currentStep]);
+  }, [currentStep, stepCompleted]);
 
   const handleMisclick = useCallback((errorType: ErrorType = 'targeting') => {
     recordMisclick(errorType);
@@ -128,37 +137,44 @@ const Assessment: React.FC = () => {
 
   // Handle portal interactions
   const handlePortalAction = useCallback((action: string) => {
+    if (stepCompleted) return;
+    
     switch (action) {
       case 'login':
         if (currentStep?.id === 'eadl2-step2') {
           setPortalScreen('home');
           setAutomatedScore(2);
+          setStepCompleted(true);
         }
         break;
       case 'view_results':
         if (currentStep?.id === 'eadl2-step3') {
           setPortalScreen('results');
           setAutomatedScore(2);
+          setStepCompleted(true);
         }
         break;
       case 'send_message':
         if (currentStep?.id === 'eadl2-step4') {
           setAutomatedScore(2);
+          setStepCompleted(true);
         }
         break;
       case 'request_refill':
         if (currentStep?.id === 'eadl2-step5') {
           setAutomatedScore(2);
+          setStepCompleted(true);
         }
         break;
       case 'toggle_camera':
       case 'toggle_mic':
         if (currentStep?.id === 'eadl2-step6') {
           setAutomatedScore(2);
+          setStepCompleted(true);
         }
         break;
     }
-  }, [currentStep]);
+  }, [currentStep, stepCompleted]);
 
   // Handle open-ended response
   const handleOpenEndedSubmit = useCallback((response: string) => {
@@ -177,6 +193,7 @@ const Assessment: React.FC = () => {
     setPortalScreen('login');
     setShowNotification(false);
     setAutomatedScore(null);
+    setStepCompleted(false);
   }, []);
 
   if (!session || !currentModule || !currentStep) {
