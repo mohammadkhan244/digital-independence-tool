@@ -35,12 +35,22 @@ interface AppIconData {
   isTarget?: boolean;
 }
 
+// Simple mode shows these essential apps (includes App Store for step 6)
+const simpleModeApps: AppIconData[] = [
+  { id: 'messages', name: 'Messages', icon: MessageSquare, bgColor: 'bg-green-500', isTarget: true },
+  { id: 'phone', name: 'Phone', icon: Phone, bgColor: 'bg-green-600' },
+  { id: 'mail', name: 'Mail', icon: Mail, bgColor: 'bg-blue-500' },
+  { id: 'myhealth', name: 'MyHealth', icon: Heart, bgColor: 'bg-red-500', isTarget: true },
+  { id: 'appstore', name: 'App Store', icon: Store, bgColor: 'bg-blue-500', isTarget: true },
+  { id: 'settings', name: 'Settings', icon: Settings, bgColor: 'bg-gray-500' },
+];
+
+// Complex mode shows all apps (no Zoom - it's in App Store)
 const allApps: AppIconData[] = [
   { id: 'messages', name: 'Messages', icon: MessageSquare, bgColor: 'bg-green-500', isTarget: true },
   { id: 'phone', name: 'Phone', icon: Phone, bgColor: 'bg-green-600' },
   { id: 'mail', name: 'Mail', icon: Mail, bgColor: 'bg-blue-500' },
   { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, bgColor: 'bg-emerald-500' },
-  { id: 'zoom', name: 'Zoom', icon: Video, bgColor: 'bg-blue-600' },
   { id: 'myhealth', name: 'MyHealth', icon: Heart, bgColor: 'bg-red-500', isTarget: true },
   { id: 'safebank', name: 'SafeBank', icon: Wallet, bgColor: 'bg-indigo-600', isTarget: true },
   { id: 'quickshop', name: 'QuickShop', icon: ShoppingBag, bgColor: 'bg-orange-500' },
@@ -81,7 +91,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   showHint = false,
 }) => {
   const visibleApps = simpleMode 
-    ? allApps.slice(0, 6) 
+    ? simpleModeApps 
     : allApps;
 
   const iconSize = simpleMode ? 'h-16 w-16' : 'h-14 w-14';
