@@ -68,12 +68,43 @@ const Assessment: React.FC = () => {
     }
   }, [isRunning, session, startAssessment]);
 
-  // Show notification when entering step 5 (respond to notification)
+  // Keep simulator state aligned with the active step (prevents UI/step desync)
   useEffect(() => {
-    if (currentStep?.id === 'eadl1-step5' && !stepCompleted) {
-      setShowNotification(true);
+    if (!isPhoneModule || !currentStep) return;
+
+    // Reset step gating whenever the step changes
+    setStepCompleted(false);
+
+    switch (currentStep.id) {
+      case 'eadl1-step1':
+        setPhoneScreen('lock');
+        setShowNotification(false);
+        break;
+      case 'eadl1-step2':
+        setPhoneScreen('home');
+        setShowNotification(false);
+        break;
+      case 'eadl1-step3':
+        setPhoneScreen('messages');
+        setShowNotification(false);
+        break;
+      case 'eadl1-step4':
+        setPhoneScreen('messages-conversation');
+        setShowNotification(false);
+        break;
+      case 'eadl1-step5':
+        setPhoneScreen('messages-conversation');
+        setShowNotification(true);
+        break;
+      case 'eadl1-step6':
+        setPhoneScreen('home');
+        setShowNotification(false);
+        break;
+      default:
+        break;
     }
-  }, [currentStep?.id, stepCompleted]);
+  }, [isPhoneModule, currentStep?.id]);
+
 
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
