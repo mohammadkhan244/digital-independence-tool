@@ -30,6 +30,7 @@ interface PatientPortalProps {
   currentStep?: string;
   simpleMode?: boolean;
   showHint?: boolean;
+  screen?: PortalView;
 }
 
 export const PatientPortal: React.FC<PatientPortalProps> = ({
@@ -38,8 +39,11 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   currentStep = 'login',
   simpleMode = true,
   showHint = false,
+  screen,
 }) => {
-  const [view, setView] = useState<PortalView>('login');
+  const [internalView, setInternalView] = useState<PortalView>('login');
+  const view = screen ?? internalView;
+  const setView = (v: PortalView) => setInternalView(v);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [messageText, setMessageText] = useState('');
