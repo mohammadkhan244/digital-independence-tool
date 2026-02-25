@@ -106,6 +106,35 @@ const Assessment: React.FC = () => {
     }
   }, [isPhoneModule, currentStep?.id]);
 
+  // Keep portal simulator state aligned with the active step
+  useEffect(() => {
+    if (!isPortalModule || !currentStep) return;
+    setStepCompleted(false);
+
+    switch (currentStep.id) {
+      case 'eadl2-step1':
+        setPortalScreen('login');
+        break;
+      case 'eadl2-step2':
+        setPortalScreen('login');
+        break;
+      case 'eadl2-step3':
+        setPortalScreen('home');
+        break;
+      case 'eadl2-step4':
+        setPortalScreen('messages');
+        break;
+      case 'eadl2-step5':
+        setPortalScreen('medications');
+        break;
+      case 'eadl2-step6':
+        setPortalScreen('video');
+        break;
+      default:
+        break;
+    }
+  }, [isPortalModule, currentStep?.id]);
+
 
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
@@ -402,6 +431,7 @@ const Assessment: React.FC = () => {
                     currentStep={currentStep.id}
                     simpleMode={simpleMode}
                     showHint={showHints}
+                    screen={portalScreen}
                   />
                 </div>
               </div>
