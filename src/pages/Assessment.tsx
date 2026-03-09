@@ -83,6 +83,7 @@ const Assessment: React.FC = () => {
   const [automatedScore, setAutomatedScore] = useState<Score | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [stepCompleted, setStepCompleted] = useState(false);
+  const [completedModuleInfo, setCompletedModuleInfo] = useState<{ name: string; question: string } | null>(null);
 
   // Banking sub-screen state
   const [bankingScreen, setBankingScreen] = useState<'login' | 'home' | 'transactions' | 'bill-pay' | 'security-alert'>('login');
@@ -201,6 +202,14 @@ const Assessment: React.FC = () => {
 
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
+    // Capture module info BEFORE completeStep advances to next module
+    if (currentModule && stepIndex >= currentModule.steps.length - 1) {
+      setCompletedModuleInfo({
+        name: currentModule.name,
+        question: currentModule.openEndedQuestion,
+      });
+    }
+
     setAutomatedScore(null);
     setStepCompleted(false);
     completeStep(score);
@@ -419,6 +428,7 @@ const Assessment: React.FC = () => {
   const handleOpenEndedSubmit = useCallback((response: string) => {
     setOpenEndedResponse(response);
     setShowOpenEnded(false);
+    setCompletedModuleInfo(null);
   }, [setOpenEndedResponse]);
 
   // Toggle difficulty mode
@@ -452,24 +462,24 @@ const Assessment: React.FC = () => {
   }
 
   // Open-ended question screen
-  if (showOpenEnded) {
+  if (showOpenEnded && completedModuleInfo) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="mx-auto max-w-2xl">
           <div className="mb-6">
-            <Button variant="ghost" onClick={() => setShowOpenEnded(false)}>
+            <Button variant="ghost" onClick={() => { setShowOpenEnded(false); setCompletedModuleInfo(null); }}>
               <ChevronLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
           </div>
           
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-foreground">{currentModule.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{completedModuleInfo.name}</h1>
             <p className="text-muted-foreground">Module Complete - Share Your Thoughts</p>
           </div>
 
           <OpenEndedQuestion
-            question={currentModule.openEndedQuestion}
+            question={completedModuleInfo.question}
             onSubmit={handleOpenEndedSubmit}
             onSkip={() => handleOpenEndedSubmit('')}
             simpleMode={simpleMode}
