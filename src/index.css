@@ -139,7 +139,7 @@
   }
 
   .phone-screen {
-    @apply relative overflow-hidden rounded-[2rem] bg-phone-screen;
+    @apply relative flex flex-col overflow-hidden rounded-[2rem] bg-phone-screen;
     aspect-ratio: 9/19.5;
   }
 
