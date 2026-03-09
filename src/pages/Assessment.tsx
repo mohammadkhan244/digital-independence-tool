@@ -464,6 +464,39 @@ const Assessment: React.FC = () => {
     );
   }
 
+  // Congratulations screen
+  if (showCongrats && completedModuleInfo) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+              <PartyPopper className="h-10 w-10 text-primary" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-3">Great Job! 🎉</h1>
+          <p className="text-lg text-muted-foreground mb-2">
+            You've completed the <span className="font-semibold text-foreground">{completedModuleInfo.name}</span> task!
+          </p>
+          <p className="text-muted-foreground mb-8">
+            Next, please answer a short competency survey about your experience with this task.
+          </p>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              setShowCongrats(false);
+              setShowOpenEnded(true);
+            }}
+          >
+            Continue to Survey
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Open-ended question screen
   if (showOpenEnded && completedModuleInfo) {
     return (
