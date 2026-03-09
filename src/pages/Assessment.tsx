@@ -202,6 +202,14 @@ const Assessment: React.FC = () => {
 
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
+    // Capture module info BEFORE completeStep advances to next module
+    if (currentModule && stepIndex >= currentModule.steps.length - 1) {
+      setCompletedModuleInfo({
+        name: currentModule.name,
+        question: currentModule.openEndedQuestion,
+      });
+    }
+
     setAutomatedScore(null);
     setStepCompleted(false);
     completeStep(score);
