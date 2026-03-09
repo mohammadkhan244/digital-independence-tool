@@ -26,6 +26,7 @@ import {
   Eye, 
   Sliders,
   RotateCcw,
+  PartyPopper,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType } from '@/types/assessment';
 
@@ -84,6 +85,7 @@ const Assessment: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [stepCompleted, setStepCompleted] = useState(false);
   const [completedModuleInfo, setCompletedModuleInfo] = useState<{ name: string; question: string } | null>(null);
+  const [showCongrats, setShowCongrats] = useState(false);
 
   // Banking sub-screen state
   const [bankingScreen, setBankingScreen] = useState<'login' | 'home' | 'transactions' | 'bill-pay' | 'security-alert'>('login');
@@ -203,7 +205,8 @@ const Assessment: React.FC = () => {
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
     // Capture module info BEFORE completeStep advances to next module
-    if (currentModule && stepIndex >= currentModule.steps.length - 1) {
+    const isLastStep = currentModule && stepIndex >= currentModule.steps.length - 1;
+    if (isLastStep && currentModule) {
       setCompletedModuleInfo({
         name: currentModule.name,
         question: currentModule.openEndedQuestion,
@@ -214,9 +217,9 @@ const Assessment: React.FC = () => {
     setStepCompleted(false);
     completeStep(score);
     
-    // Check if module is complete
-    if (currentModule && stepIndex >= currentModule.steps.length - 1) {
-      setShowOpenEnded(true);
+    // Show congrats when module is complete
+    if (isLastStep) {
+      setShowCongrats(true);
     }
   }, [completeStep, currentModule, stepIndex]);
 
@@ -456,6 +459,39 @@ const Assessment: React.FC = () => {
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
           <p className="text-muted-foreground">Loading assessment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Congratulations screen
+  if (showCongrats && completedModuleInfo) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+              <PartyPopper className="h-10 w-10 text-primary" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-3">Great Job! 🎉</h1>
+          <p className="text-lg text-muted-foreground mb-2">
+            You've completed the <span className="font-semibold text-foreground">{completedModuleInfo.name}</span> task!
+          </p>
+          <p className="text-muted-foreground mb-8">
+            Next, please answer a short competency survey about your experience with this task.
+          </p>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              setShowCongrats(false);
+              setShowOpenEnded(true);
+            }}
+          >
+            Continue to Survey
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
         </div>
       </div>
     );
