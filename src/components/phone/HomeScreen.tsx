@@ -97,10 +97,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       })()
     : allApps;
 
-  const iconSize = simpleMode ? 'h-16 w-16' : 'h-14 w-14';
-  const iconInnerSize = simpleMode ? 'h-8 w-8' : 'h-6 w-6';
-  const gridCols = simpleMode ? 'grid-cols-3' : 'grid-cols-4';
-  const textSize = simpleMode ? 'text-sm' : 'text-xs';
+  const iconSize = simpleMode ? 'h-20 w-20' : 'h-14 w-14';
+  const iconInnerSize = simpleMode ? 'h-10 w-10' : 'h-6 w-6';
+  const gridCols = simpleMode ? 'grid-cols-2' : 'grid-cols-4';
+  const textSize = simpleMode ? 'text-base' : 'text-xs';
 
   const handleTap = (appId: string) => {
     if (targetApps.includes(appId)) {
