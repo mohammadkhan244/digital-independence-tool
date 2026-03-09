@@ -204,7 +204,8 @@ const Assessment: React.FC = () => {
   // Handle step completion logic
   const handleStepComplete = useCallback((score: Score) => {
     // Capture module info BEFORE completeStep advances to next module
-    if (currentModule && stepIndex >= currentModule.steps.length - 1) {
+    const isLastStep = currentModule && stepIndex >= currentModule.steps.length - 1;
+    if (isLastStep && currentModule) {
       setCompletedModuleInfo({
         name: currentModule.name,
         question: currentModule.openEndedQuestion,
@@ -215,9 +216,9 @@ const Assessment: React.FC = () => {
     setStepCompleted(false);
     completeStep(score);
     
-    // Check if module is complete
-    if (currentModule && stepIndex >= currentModule.steps.length - 1) {
-      setShowOpenEnded(true);
+    // Show congrats when module is complete
+    if (isLastStep) {
+      setShowCongrats(true);
     }
   }, [completeStep, currentModule, stepIndex]);
 
