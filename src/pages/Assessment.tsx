@@ -462,24 +462,24 @@ const Assessment: React.FC = () => {
   }
 
   // Open-ended question screen
-  if (showOpenEnded) {
+  if (showOpenEnded && completedModuleInfo) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="mx-auto max-w-2xl">
           <div className="mb-6">
-            <Button variant="ghost" onClick={() => setShowOpenEnded(false)}>
+            <Button variant="ghost" onClick={() => { setShowOpenEnded(false); setCompletedModuleInfo(null); }}>
               <ChevronLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
           </div>
           
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-foreground">{currentModule.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{completedModuleInfo.name}</h1>
             <p className="text-muted-foreground">Module Complete - Share Your Thoughts</p>
           </div>
 
           <OpenEndedQuestion
-            question={currentModule.openEndedQuestion}
+            question={completedModuleInfo.question}
             onSubmit={handleOpenEndedSubmit}
             onSkip={() => handleOpenEndedSubmit('')}
             simpleMode={simpleMode}
