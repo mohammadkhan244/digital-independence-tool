@@ -113,7 +113,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-blue-600 via-purple-600 to-pink-600 p-4">
       {/* App Grid */}
-      <div className={cn("grid gap-4 flex-1 content-start pt-4", gridCols)}>
+      <div className={cn("grid flex-1", gridCols, simpleMode ? "gap-8 content-center px-4" : "gap-4 content-start pt-4")}>
         {visibleApps.map((app) => {
           const isTarget = targetApps.includes(app.id);
           const isHighlighted = highlightTarget === app.id;
