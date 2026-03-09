@@ -129,6 +129,12 @@ export const LockScreen: React.FC<LockScreenProps> = ({
           className="mx-auto flex flex-col items-center cursor-pointer touch-target"
           onTouchStart={handleTouchStart}
           onMouseDown={handleMouseDown}
+          onClick={() => {
+            // Allow simple click/tap to unlock as a fallback
+            if (!isDragging) {
+              onUnlock();
+            }
+          }}
         >
           <div className={cn(
             "flex items-center justify-center rounded-full transition-all",
