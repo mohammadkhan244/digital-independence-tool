@@ -97,10 +97,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       })()
     : allApps;
 
-  const iconSize = simpleMode ? 'h-16 w-16' : 'h-14 w-14';
-  const iconInnerSize = simpleMode ? 'h-8 w-8' : 'h-6 w-6';
-  const gridCols = simpleMode ? 'grid-cols-3' : 'grid-cols-4';
-  const textSize = simpleMode ? 'text-sm' : 'text-xs';
+  const iconSize = simpleMode ? 'h-20 w-20' : 'h-14 w-14';
+  const iconInnerSize = simpleMode ? 'h-10 w-10' : 'h-6 w-6';
+  const gridCols = simpleMode ? 'grid-cols-2' : 'grid-cols-4';
+  const textSize = simpleMode ? 'text-base' : 'text-xs';
 
   const handleTap = (appId: string) => {
     if (targetApps.includes(appId)) {
@@ -113,7 +113,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-blue-600 via-purple-600 to-pink-600 p-4">
       {/* App Grid */}
-      <div className={cn("grid gap-4 flex-1 content-start pt-4", gridCols)}>
+      <div className={cn("grid flex-1", gridCols, simpleMode ? "gap-8 content-center px-4" : "gap-4 content-start pt-4")}>
         {visibleApps.map((app) => {
           const isTarget = targetApps.includes(app.id);
           const isHighlighted = highlightTarget === app.id;
