@@ -84,6 +84,7 @@ const Assessment: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [stepCompleted, setStepCompleted] = useState(false);
   const [completedModuleInfo, setCompletedModuleInfo] = useState<{ name: string; question: string } | null>(null);
+  const [showCongrats, setShowCongrats] = useState(false);
 
   // Banking sub-screen state
   const [bankingScreen, setBankingScreen] = useState<'login' | 'home' | 'transactions' | 'bill-pay' | 'security-alert'>('login');
