@@ -428,6 +428,7 @@ const Assessment: React.FC = () => {
   const handleOpenEndedSubmit = useCallback((response: string) => {
     setOpenEndedResponse(response);
     setShowOpenEnded(false);
+    setCompletedModuleInfo(null);
   }, [setOpenEndedResponse]);
 
   // Toggle difficulty mode
