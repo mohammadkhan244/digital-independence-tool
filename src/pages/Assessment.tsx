@@ -26,6 +26,7 @@ import {
   Eye, 
   Sliders,
   RotateCcw,
+  PartyPopper,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType } from '@/types/assessment';
 
