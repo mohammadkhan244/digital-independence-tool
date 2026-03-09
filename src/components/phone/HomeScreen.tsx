@@ -35,13 +35,10 @@ interface AppIconData {
   isTarget?: boolean;
 }
 
-// Simple mode shows these essential apps (includes App Store for step 6)
-const simpleModeApps: AppIconData[] = [
-  { id: 'messages', name: 'Messages', icon: MessageSquare, bgColor: 'bg-green-500', isTarget: true },
+// Base simple mode apps (filler)
+const baseSimpleApps: AppIconData[] = [
   { id: 'phone', name: 'Phone', icon: Phone, bgColor: 'bg-green-600' },
   { id: 'mail', name: 'Mail', icon: Mail, bgColor: 'bg-blue-500' },
-  { id: 'myhealth', name: 'MyHealth', icon: Heart, bgColor: 'bg-red-500', isTarget: true },
-  { id: 'appstore', name: 'App Store', icon: Store, bgColor: 'bg-blue-500', isTarget: true },
   { id: 'settings', name: 'Settings', icon: Settings, bgColor: 'bg-gray-500' },
 ];
 
@@ -90,8 +87,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   highlightTarget,
   showHint = false,
 }) => {
+  // In simple mode, show target apps + base filler apps (up to 6)
   const visibleApps = simpleMode 
-    ? simpleModeApps 
+    ? (() => {
+        const targetAppData = allApps.filter(a => targetApps.includes(a.id));
+        const filler = baseSimpleApps.filter(a => !targetApps.includes(a.id));
+        const combined = [...targetAppData, ...filler];
+        return combined.slice(0, 6);
+      })()
     : allApps;
 
   const iconSize = simpleMode ? 'h-16 w-16' : 'h-14 w-14';
