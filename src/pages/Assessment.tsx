@@ -456,7 +456,7 @@ const Assessment: React.FC = () => {
   // Congrats + survey phase uses the same layout but locks the phone
   const isModuleCompletePhase = (showCongrats || showOpenEnded) && completedModuleInfo;
 
-  if (!session || !currentModule || !currentStep) {
+  if (!isModuleCompletePhase && (!session || !currentModule || !currentStep)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -468,10 +468,14 @@ const Assessment: React.FC = () => {
   }
 
   // Get target apps for the current module's home screen
-  const targetApps = moduleTargetApps[moduleId] || [];
+  const targetApps = currentModule ? (moduleTargetApps[moduleId] || []) : [];
   // Highlight the main app on step 1
-  const homeHighlight = currentStep.id.endsWith('-step1') ? moduleMainApp[moduleId] : 
-    currentStep.id === 'eadl1-step2' ? 'messages' : undefined;
+  const homeHighlight = currentStep?.id?.endsWith('-step1') ? moduleMainApp[moduleId] : 
+    currentStep?.id === 'eadl1-step2' ? 'messages' : undefined;
+
+  // Use completed module info for header during complete phase
+  const headerTitle = isModuleCompletePhase ? completedModuleInfo!.name : currentModule?.name;
+  const headerSubtitle = isModuleCompletePhase ? 'Module Complete' : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -483,32 +487,32 @@ const Assessment: React.FC = () => {
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="font-semibold text-foreground">{currentModule.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                Step {stepIndex + 1} of {currentModule.steps.length}
-              </p>
+              <h1 className="font-semibold text-foreground">{headerTitle}</h1>
+              <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleDifficulty}
-              className="gap-1"
-            >
-              <Sliders className="h-4 w-4" />
-              {simpleMode ? 'Simple' : 'Complex'}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={restartModule}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
+          {!isModuleCompletePhase && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleDifficulty}
+                className="gap-1"
+              >
+                <Sliders className="h-4 w-4" />
+                {simpleMode ? 'Simple' : 'Complex'}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={restartModule}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -520,140 +524,169 @@ const Assessment: React.FC = () => {
             <div className="mb-4 text-center">
               <span className={cn(
                 "inline-block rounded-full px-3 py-1 text-sm font-medium",
-                simpleMode 
-                  ? "bg-primary/10 text-primary" 
-                  : "bg-muted text-muted-foreground"
+                isModuleCompletePhase
+                  ? "bg-primary/10 text-primary"
+                  : simpleMode 
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-muted text-muted-foreground"
               )}>
-                {simpleMode ? 'Simple Mode' : 'Complex Mode'}
+                {isModuleCompletePhase ? '✅ Task Complete' : simpleMode ? 'Simple Mode' : 'Complex Mode'}
               </span>
             </div>
 
-            {/* Phone Simulator (all modules except eADL-2) */}
-            {isPhoneModule && (
+            {/* Phone with celebration overlay when module complete */}
+            {(isPhoneModule || isModuleCompletePhase) && (
               <div className="relative">
                 <PhoneFrame className="w-[320px]">
-                  {phoneScreen === 'lock' && (
-                    <LockScreen
-                      onUnlock={handleUnlock}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                    />
-                  )}
-                  
-                  {phoneScreen === 'home' && (
-                    <HomeScreen
-                      onAppTap={handleAppTap}
-                      onMisclick={() => handleMisclick('navigation')}
-                      targetApps={targetApps}
-                      simpleMode={simpleMode}
-                      highlightTarget={homeHighlight}
-                      showHint={showHints}
-                    />
-                  )}
-                  
-                  {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
-                    <MessagesApp
-                      onBack={() => setPhoneScreen('home')}
-                      onContactSelect={handleContactSelect}
-                      onSendMessage={handleSendMessage}
-                      onMisclick={() => handleMisclick('targeting')}
-                      targetContact="dr-smith"
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
-                    />
-                  )}
-                  
-                  {phoneScreen === 'app-store' && (
-                    <AppStoreScreen
-                      onBack={() => setPhoneScreen('home')}
-                      onDownloadApp={handleDownloadApp}
-                      onMisclick={() => handleMisclick('targeting')}
-                      targetApp="zoom"
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                    />
-                  )}
+                  {isModuleCompletePhase ? (
+                    /* Celebration lock screen inside phone */
+                    <div className="flex h-full flex-col items-center justify-center bg-gradient-to-b from-primary/20 via-background to-primary/10 p-6 text-center">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                        <PartyPopper className="h-8 w-8 text-primary" />
+                      </div>
+                      <h2 className="text-xl font-bold text-foreground mb-2">Great Job! 🎉</h2>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        You completed
+                      </p>
+                      <p className="text-base font-semibold text-foreground mb-4">
+                        {completedModuleInfo!.name}
+                      </p>
+                      <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 mb-4">
+                        <p className="text-xs text-muted-foreground">
+                          👉 Please complete the survey on the right to continue
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                        Waiting for survey...
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {phoneScreen === 'lock' && (
+                        <LockScreen
+                          onUnlock={handleUnlock}
+                          onMisclick={() => handleMisclick('targeting')}
+                          simpleMode={simpleMode}
+                        />
+                      )}
+                      
+                      {phoneScreen === 'home' && (
+                        <HomeScreen
+                          onAppTap={handleAppTap}
+                          onMisclick={() => handleMisclick('navigation')}
+                          targetApps={targetApps}
+                          simpleMode={simpleMode}
+                          highlightTarget={homeHighlight}
+                          showHint={showHints}
+                        />
+                      )}
+                      
+                      {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
+                        <MessagesApp
+                          onBack={() => setPhoneScreen('home')}
+                          onContactSelect={handleContactSelect}
+                          onSendMessage={handleSendMessage}
+                          onMisclick={() => handleMisclick('targeting')}
+                          targetContact="dr-smith"
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                          currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
+                        />
+                      )}
+                      
+                      {phoneScreen === 'app-store' && (
+                        <AppStoreScreen
+                          onBack={() => setPhoneScreen('home')}
+                          onDownloadApp={handleDownloadApp}
+                          onMisclick={() => handleMisclick('targeting')}
+                          targetApp="zoom"
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                        />
+                      )}
 
-                  {phoneScreen === 'banking' && (
-                    <BankingApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleBankingAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={bankingScreen}
-                    />
-                  )}
+                      {phoneScreen === 'banking' && (
+                        <BankingApp
+                          onBack={() => setPhoneScreen('home')}
+                          onAction={handleBankingAction}
+                          onMisclick={() => handleMisclick('targeting')}
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                          screen={bankingScreen}
+                        />
+                      )}
 
-                  {phoneScreen === 'shopping' && (
-                    <ShoppingApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleShoppingAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={shoppingScreen}
-                    />
-                  )}
+                      {phoneScreen === 'shopping' && (
+                        <ShoppingApp
+                          onBack={() => setPhoneScreen('home')}
+                          onAction={handleShoppingAction}
+                          onMisclick={() => handleMisclick('targeting')}
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                          screen={shoppingScreen}
+                        />
+                      )}
 
-                  {phoneScreen === 'transport' && (
-                    <TransportApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleTransportAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={transportScreen}
-                    />
-                  )}
+                      {phoneScreen === 'transport' && (
+                        <TransportApp
+                          onBack={() => setPhoneScreen('home')}
+                          onAction={handleTransportAction}
+                          onMisclick={() => handleMisclick('targeting')}
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                          screen={transportScreen}
+                        />
+                      )}
 
-                  {phoneScreen === 'streaming' && (
-                    <StreamingApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleStreamingAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={streamingScreen}
-                    />
-                  )}
+                      {phoneScreen === 'streaming' && (
+                        <StreamingApp
+                          onBack={() => setPhoneScreen('home')}
+                          onAction={handleStreamingAction}
+                          onMisclick={() => handleMisclick('targeting')}
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                          screen={streamingScreen}
+                        />
+                      )}
 
-                  {phoneScreen === 'homesafety' && (
-                    <HomeSafetyApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleSafetyAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={safetyScreen}
-                    />
-                  )}
-                  
-                  {/* Notification Overlay */}
-                  {showNotification && currentStep.id === 'eadl1-step5' && (
-                    <NotificationBanner
-                      appName="Messages"
-                      appIcon="💬"
-                      title="New Message"
-                      message="Dr. Smith: Great, I'll see you tomorrow!"
-                      onTap={handleNotificationTap}
-                      onDismiss={() => handleMisclick('attention')}
-                      simpleMode={simpleMode}
-                    />
+                      {phoneScreen === 'homesafety' && (
+                        <HomeSafetyApp
+                          onBack={() => setPhoneScreen('home')}
+                          onAction={handleSafetyAction}
+                          onMisclick={() => handleMisclick('targeting')}
+                          simpleMode={simpleMode}
+                          showHint={showHints}
+                          screen={safetyScreen}
+                        />
+                      )}
+                      
+                      {/* Notification Overlay */}
+                      {showNotification && currentStep?.id === 'eadl1-step5' && (
+                        <NotificationBanner
+                          appName="Messages"
+                          appIcon="💬"
+                          title="New Message"
+                          message="Dr. Smith: Great, I'll see you tomorrow!"
+                          onTap={handleNotificationTap}
+                          onDismiss={() => handleMisclick('attention')}
+                          simpleMode={simpleMode}
+                        />
+                      )}
+                    </>
                   )}
                 </PhoneFrame>
               </div>
             )}
 
             {/* Portal Simulator (eADL-2 only) */}
-            {isPortalModule && (
+            {isPortalModule && !isModuleCompletePhase && (
               <div className="w-full max-w-lg rounded-xl border bg-white shadow-xl overflow-hidden">
                 <div className="h-[600px]">
                   <PatientPortal
                     onAction={handlePortalAction}
                     onMisclick={() => handleMisclick('navigation')}
-                    currentStep={currentStep.id}
+                    currentStep={currentStep!.id}
                     simpleMode={simpleMode}
                     showHint={showHints}
                     screen={portalScreen}
@@ -665,28 +698,70 @@ const Assessment: React.FC = () => {
 
           {/* Assessment Panel */}
           <div className="space-y-6">
-            {/* Step Tracker */}
-            <div className="rounded-xl border bg-card p-6 shadow-sm">
-              <h2 className="font-semibold text-foreground mb-4">Progress</h2>
-              <StepTracker
-                steps={currentModule.steps}
-                currentStepIndex={stepIndex}
-                stepResults={
-                  session.moduleResults.find(m => m.moduleId === currentModule.id)?.stepResults || []
-                }
-                simpleMode={simpleMode}
-              />
-            </div>
+            {isModuleCompletePhase ? (
+              /* Survey panel when module is complete */
+              <div className="space-y-6">
+                {showCongrats && (
+                  <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
+                    <div className="mb-4 flex justify-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                        <PartyPopper className="h-7 w-7 text-primary" />
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-bold text-foreground mb-2">Task Complete! 🎉</h2>
+                    <p className="text-muted-foreground mb-4">
+                      Great work completing <span className="font-semibold text-foreground">{completedModuleInfo!.name}</span>. 
+                      Now please answer the competency survey below.
+                    </p>
+                    <Button
+                      size="lg"
+                      className="w-full"
+                      onClick={() => {
+                        setShowCongrats(false);
+                        setShowOpenEnded(true);
+                      }}
+                    >
+                      Start Survey
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                )}
 
-            {/* Scoring Panel */}
-            <ScoringPanel
-              stepInstruction={currentStep.instruction}
-              automatedScore={automatedScore}
-              onScoreSubmit={handleStepComplete}
-              hints={currentStep.hints}
-              simpleMode={simpleMode}
-              allowOverride={true}
-            />
+                {showOpenEnded && (
+                  <OpenEndedQuestion
+                    question={completedModuleInfo!.question}
+                    onSubmit={handleOpenEndedSubmit}
+                    onSkip={() => handleOpenEndedSubmit('')}
+                    simpleMode={simpleMode}
+                  />
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Step Tracker */}
+                <div className="rounded-xl border bg-card p-6 shadow-sm">
+                  <h2 className="font-semibold text-foreground mb-4">Progress</h2>
+                  <StepTracker
+                    steps={currentModule!.steps}
+                    currentStepIndex={stepIndex}
+                    stepResults={
+                      session!.moduleResults.find(m => m.moduleId === currentModule!.id)?.stepResults || []
+                    }
+                    simpleMode={simpleMode}
+                  />
+                </div>
+
+                {/* Scoring Panel */}
+                <ScoringPanel
+                  stepInstruction={currentStep!.instruction}
+                  automatedScore={automatedScore}
+                  onScoreSubmit={handleStepComplete}
+                  hints={currentStep!.hints}
+                  simpleMode={simpleMode}
+                  allowOverride={true}
+                />
+              </>
+            )}
           </div>
         </div>
       </main>
