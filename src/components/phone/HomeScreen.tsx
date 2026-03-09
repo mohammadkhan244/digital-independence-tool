@@ -87,8 +87,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   highlightTarget,
   showHint = false,
 }) => {
+  // In simple mode, show target apps + base filler apps (up to 6)
   const visibleApps = simpleMode 
-    ? simpleModeApps 
+    ? (() => {
+        const targetAppData = allApps.filter(a => targetApps.includes(a.id));
+        const filler = baseSimpleApps.filter(a => !targetApps.includes(a.id));
+        const combined = [...targetAppData, ...filler];
+        return combined.slice(0, 6);
+      })()
     : allApps;
 
   const iconSize = simpleMode ? 'h-16 w-16' : 'h-14 w-14';
