@@ -35,13 +35,10 @@ interface AppIconData {
   isTarget?: boolean;
 }
 
-// Simple mode shows these essential apps (includes App Store for step 6)
-const simpleModeApps: AppIconData[] = [
-  { id: 'messages', name: 'Messages', icon: MessageSquare, bgColor: 'bg-green-500', isTarget: true },
+// Base simple mode apps (filler)
+const baseSimpleApps: AppIconData[] = [
   { id: 'phone', name: 'Phone', icon: Phone, bgColor: 'bg-green-600' },
   { id: 'mail', name: 'Mail', icon: Mail, bgColor: 'bg-blue-500' },
-  { id: 'myhealth', name: 'MyHealth', icon: Heart, bgColor: 'bg-red-500', isTarget: true },
-  { id: 'appstore', name: 'App Store', icon: Store, bgColor: 'bg-blue-500', isTarget: true },
   { id: 'settings', name: 'Settings', icon: Settings, bgColor: 'bg-gray-500' },
 ];
 
