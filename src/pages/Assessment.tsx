@@ -37,6 +37,7 @@ type PortalScreen = 'login' | 'home' | 'results' | 'messages' | 'medications' | 
 // Map module IDs to their target apps on the home screen
 const moduleTargetApps: Record<string, string[]> = {
   'eadl-1': ['messages', 'appstore'],
+  'eadl-2': ['myhealth'],
   'eadl-3': ['safebank'],
   'eadl-4': ['quickshop'],
   'eadl-5': ['maps'],
@@ -46,6 +47,7 @@ const moduleTargetApps: Record<string, string[]> = {
 
 // Map module IDs to their main app on the home screen
 const moduleMainApp: Record<string, string> = {
+  'eadl-2': 'myhealth',
   'eadl-3': 'safebank',
   'eadl-4': 'quickshop',
   'eadl-5': 'maps',
@@ -107,8 +109,10 @@ const Assessment: React.FC = () => {
   const showHints = simpleMode;
 
   // Determine which simulator to show based on current module
-  const isPhoneModule = currentModule?.id !== 'eadl-2'; // All except eADL-2 are phone-based
-  const isPortalModule = currentModule?.id === 'eadl-2';
+  // eADL-2 step 1 uses the phone home screen; subsequent steps use the portal
+  const isEadl2Step1 = currentModule?.id === 'eadl-2' && currentStep?.id === 'eadl2-step1';
+  const isPhoneModule = currentModule?.id !== 'eadl-2' || isEadl2Step1;
+  const isPortalModule = currentModule?.id === 'eadl-2' && !isEadl2Step1;
   const moduleId = currentModule?.id || '';
 
   // Start assessment on mount if not running
@@ -138,10 +142,10 @@ const Assessment: React.FC = () => {
         case 'eadl1-step6': setPhoneScreen('home'); setShowNotification(false); break;
       }
     }
-    // eADL-2: Telehealth (portal)
+    // eADL-2: Telehealth (portal) — step 1 shows phone home screen
     else if (mid === 'eadl-2') {
       switch (sid) {
-        case 'eadl2-step1': setPortalScreen('login'); break;
+        case 'eadl2-step1': setPhoneScreen('home'); break;
         case 'eadl2-step2': setPortalScreen('login'); break;
         case 'eadl2-step3': setPortalScreen('home'); break;
         case 'eadl2-step4': setPortalScreen('messages'); break;
@@ -235,6 +239,7 @@ const Assessment: React.FC = () => {
   const handleAppTap = useCallback((appId: string) => {
     if (stepCompleted) return;
     const sid = currentStep?.id;
+    const mid = currentModule?.id;
 
     // eADL-1 step 2: open messages
     if (sid === 'eadl1-step2' && appId === 'messages') {
@@ -249,8 +254,15 @@ const Assessment: React.FC = () => {
       return;
     }
 
+    // eADL-2 step 1: open MyHealth portal
+    if (mid === 'eadl-2' && sid === 'eadl2-step1' && appId === 'myhealth') {
+      setPortalScreen('login');
+      setAutomatedScore(2);
+      setStepCompleted(true);
+      return;
+    }
+
     // Generic: open the module's main app (step 1 for eADL 3-7)
-    const mid = currentModule?.id;
     if (mid && moduleMainApp[mid] && appId === moduleMainApp[mid]) {
       const appScreen = moduleAppScreen[mid];
       if (appScreen) {
