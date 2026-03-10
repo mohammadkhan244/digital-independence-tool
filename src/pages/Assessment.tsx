@@ -239,6 +239,7 @@ const Assessment: React.FC = () => {
   const handleAppTap = useCallback((appId: string) => {
     if (stepCompleted) return;
     const sid = currentStep?.id;
+    const mid = currentModule?.id;
 
     // eADL-1 step 2: open messages
     if (sid === 'eadl1-step2' && appId === 'messages') {
