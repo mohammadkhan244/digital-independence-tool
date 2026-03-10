@@ -253,8 +253,15 @@ const Assessment: React.FC = () => {
       return;
     }
 
+    // eADL-2 step 1: open MyHealth portal
+    if (mid === 'eadl-2' && sid === 'eadl2-step1' && appId === 'myhealth') {
+      setPortalScreen('login');
+      setAutomatedScore(2);
+      setStepCompleted(true);
+      return;
+    }
+
     // Generic: open the module's main app (step 1 for eADL 3-7)
-    const mid = currentModule?.id;
     if (mid && moduleMainApp[mid] && appId === moduleMainApp[mid]) {
       const appScreen = moduleAppScreen[mid];
       if (appScreen) {
