@@ -47,6 +47,7 @@ const moduleTargetApps: Record<string, string[]> = {
 
 // Map module IDs to their main app on the home screen
 const moduleMainApp: Record<string, string> = {
+  'eadl-2': 'myhealth',
   'eadl-3': 'safebank',
   'eadl-4': 'quickshop',
   'eadl-5': 'maps',
