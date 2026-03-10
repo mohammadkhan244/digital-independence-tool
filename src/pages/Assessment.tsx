@@ -142,10 +142,10 @@ const Assessment: React.FC = () => {
         case 'eadl1-step6': setPhoneScreen('home'); setShowNotification(false); break;
       }
     }
-    // eADL-2: Telehealth (portal)
+    // eADL-2: Telehealth (portal) — step 1 shows phone home screen
     else if (mid === 'eadl-2') {
       switch (sid) {
-        case 'eadl2-step1': setPortalScreen('login'); break;
+        case 'eadl2-step1': setPhoneScreen('home'); break;
         case 'eadl2-step2': setPortalScreen('login'); break;
         case 'eadl2-step3': setPortalScreen('home'); break;
         case 'eadl2-step4': setPortalScreen('messages'); break;
