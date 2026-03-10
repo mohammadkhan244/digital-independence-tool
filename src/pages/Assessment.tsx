@@ -109,8 +109,10 @@ const Assessment: React.FC = () => {
   const showHints = simpleMode;
 
   // Determine which simulator to show based on current module
-  const isPhoneModule = currentModule?.id !== 'eadl-2'; // All except eADL-2 are phone-based
-  const isPortalModule = currentModule?.id === 'eadl-2';
+  // eADL-2 step 1 uses the phone home screen; subsequent steps use the portal
+  const isEadl2Step1 = currentModule?.id === 'eadl-2' && currentStep?.id === 'eadl2-step1';
+  const isPhoneModule = currentModule?.id !== 'eadl-2' || isEadl2Step1;
+  const isPortalModule = currentModule?.id === 'eadl-2' && !isEadl2Step1;
   const moduleId = currentModule?.id || '';
 
   // Start assessment on mount if not running
