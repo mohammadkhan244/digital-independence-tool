@@ -37,6 +37,7 @@ type PortalScreen = 'login' | 'home' | 'results' | 'messages' | 'medications' | 
 // Map module IDs to their target apps on the home screen
 const moduleTargetApps: Record<string, string[]> = {
   'eadl-1': ['messages', 'appstore'],
+  'eadl-2': ['myhealth'],
   'eadl-3': ['safebank'],
   'eadl-4': ['quickshop'],
   'eadl-5': ['maps'],
