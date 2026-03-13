@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAssessment } from '@/hooks/useAssessment';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
+import { eadlModules } from '@/data/modules';
 import { Button } from '@/components/ui/button';
 import { 
   Download, 
@@ -130,8 +131,8 @@ const Dashboard: React.FC = () => {
               {session.moduleResults
                 .filter(m => m.openEndedResponse)
                 .map(result => {
-                  const module = require('@/data/modules').eadlModules.find(
-                    (m: any) => m.id === result.moduleId
+                  const module = eadlModules.find(
+                    (m) => m.id === result.moduleId
                   );
                   return (
                     <div key={result.moduleId} className="border-l-4 border-primary pl-4">
