@@ -15,21 +15,20 @@ import { TransportApp } from '@/components/phone/TransportApp';
 import { StreamingApp } from '@/components/phone/StreamingApp';
 import { HomeSafetyApp } from '@/components/phone/HomeSafetyApp';
 import { PatientPortal } from '@/components/portal/PatientPortal';
-import { StepTracker } from '@/components/assessment/StepTracker';
 import { ScoringPanel } from '@/components/assessment/ScoringPanel';
 import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
-  Eye,
   Sliders,
   RotateCcw,
   PartyPopper,
   CheckCircle2,
   Lock,
   ArrowRight,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType } from '@/types/assessment';
 
@@ -91,7 +90,6 @@ const Assessment: React.FC = () => {
   const [showNotification, setShowNotification] = useState(false);
   const [showOpenEnded, setShowOpenEnded] = useState(false);
   const [automatedScore, setAutomatedScore] = useState<Score | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
   const [stepCompleted, setStepCompleted] = useState(false);
   const [completedModuleInfo, setCompletedModuleInfo] = useState<{ name: string; question: string } | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
@@ -534,6 +532,9 @@ const Assessment: React.FC = () => {
     const isFirst = completedCount === 0;
     const activeModule = eadlModules[activeIndex];
 
+    const estMins = (steps: number) => `~${Math.ceil(steps * 30 / 60)} min`;
+    const totalMins = Math.ceil(eadlModules.reduce((s, m) => s + m.steps.length, 0) * 30 / 60);
+
     return (
       <div className="min-h-screen bg-gradient-subtle">
         {/* Header */}
@@ -564,6 +565,10 @@ const Assessment: React.FC = () => {
                 ? 'Complete all 7 modules to finish the assessment.'
                 : `You've completed ${completedCount} of ${eadlModules.length} modules. Keep going!`}
             </p>
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Total estimated time: ~{totalMins} min
+            </div>
           </div>
 
           {/* Module cards */}
@@ -627,8 +632,10 @@ const Assessment: React.FC = () => {
                           {module.description}
                         </p>
                       )}
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {module.steps.length} steps
+                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{module.steps.length} steps</span>
+                        <span>·</span>
+                        <span>{estMins(module.steps.length)}</span>
                       </div>
                     </div>
                   </div>
@@ -671,17 +678,17 @@ const Assessment: React.FC = () => {
   const headerSubtitle = isModuleCompletePhase ? 'Module Complete' : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
+        <div className="container flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="font-semibold text-foreground">{headerTitle}</h1>
-              <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
+              <h1 className="font-semibold text-sm text-foreground leading-tight">{headerTitle}</h1>
+              <p className="text-xs text-muted-foreground">{headerSubtitle}</p>
             </div>
           </div>
 
@@ -691,191 +698,203 @@ const Assessment: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={toggleDifficulty}
-                className="gap-1"
+                className="gap-1 h-8 text-xs px-2"
               >
-                <Sliders className="h-4 w-4" />
+                <Sliders className="h-3 w-3" />
                 {simpleMode ? 'Simple' : 'Complex'}
               </Button>
-              
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={restartModule}
-              >
-                <RotateCcw className="h-4 w-4" />
+              <Button variant="outline" size="icon" onClick={restartModule} className="h-8 w-8">
+                <RotateCcw className="h-3.5 w-3.5" />
               </Button>
             </div>
           )}
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container px-4 py-6">
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Simulator Panel */}
-          <div className="flex flex-col items-center">
-            <div className="mb-4 text-center">
-              <span className={cn(
-                "inline-block rounded-full px-3 py-1 text-sm font-medium",
-                isModuleCompletePhase
-                  ? "bg-primary/10 text-primary"
-                  : simpleMode 
-                    ? "bg-primary/10 text-primary" 
-                    : "bg-muted text-muted-foreground"
-              )}>
-                {isModuleCompletePhase ? '✅ Task Complete' : simpleMode ? 'Simple Mode' : 'Complex Mode'}
-              </span>
+      {/* Progress bar — always visible during active steps */}
+      {!isModuleCompletePhase && currentModule && (
+        <div className="border-b bg-card px-4 py-2.5">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span>Step {stepIndex + 1} of {currentModule.steps.length}</span>
+              <span>{Math.round(((stepIndex + 1) / currentModule.steps.length) * 100)}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${((stepIndex + 1) / currentModule.steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main content — single column, mobile-first */}
+      <main className="max-w-2xl mx-auto px-4 py-5 space-y-5">
+        {isModuleCompletePhase ? (
+          /* ── Module complete: congrats + survey ── */
+          <div className="space-y-5">
+            {showCongrats && (
+              <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
+                <div className="mb-4 flex justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                    <PartyPopper className="h-7 w-7 text-primary" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-foreground mb-2">Task Complete! 🎉</h2>
+                <p className="text-muted-foreground mb-4">
+                  Great work completing{' '}
+                  <span className="font-semibold text-foreground">{completedModuleInfo!.name}</span>.
+                  Please answer the short question below.
+                </p>
+                <Button
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    setShowCongrats(false);
+                    setShowOpenEnded(true);
+                  }}
+                >
+                  Answer Question
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+
+            {showOpenEnded && (
+              <OpenEndedQuestion
+                question={completedModuleInfo!.question}
+                onSubmit={handleOpenEndedSubmit}
+                onSkip={() => handleOpenEndedSubmit('')}
+                simpleMode={simpleMode}
+              />
+            )}
+          </div>
+        ) : (
+          /* ── Active step: instruction → simulator → rating ── */
+          <>
+            {/* 1. Step instruction */}
+            <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
+              <p className="font-medium text-foreground leading-snug">{currentStep!.instruction}</p>
+              {simpleMode && (currentStep!.hints ?? []).length > 0 && (
+                <div className="mt-3 flex items-start gap-2 rounded-lg bg-primary/5 p-3">
+                  <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-sm text-muted-foreground">{currentStep!.hints![0]}</p>
+                </div>
+              )}
             </div>
 
-            {/* Phone with celebration overlay when module complete */}
-            {(isPhoneModule || isModuleCompletePhase) && (
-              <div className="relative">
+            {/* 2. Simulator */}
+            {isPhoneModule && (
+              <div className="flex justify-center">
                 <PhoneFrame className="w-[320px]">
-                  {isModuleCompletePhase ? (
-                    /* Celebration lock screen inside phone */
-                    <div className="flex h-full flex-col items-center justify-center bg-gradient-to-b from-primary/20 via-background to-primary/10 p-6 text-center">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                        <PartyPopper className="h-8 w-8 text-primary" />
-                      </div>
-                      <h2 className="text-xl font-bold text-foreground mb-2">Great Job! 🎉</h2>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        You completed
-                      </p>
-                      <p className="text-base font-semibold text-foreground mb-4">
-                        {completedModuleInfo!.name}
-                      </p>
-                      <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 mb-4">
-                        <p className="text-xs text-muted-foreground">
-                          👉 Please complete the survey on the right to continue
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                        Waiting for survey...
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {phoneScreen === 'lock' && (
-                        <LockScreen
-                          onUnlock={handleUnlock}
-                          onMisclick={() => handleMisclick('targeting')}
-                          simpleMode={simpleMode}
-                        />
-                      )}
-                      
-                      {phoneScreen === 'home' && (
-                        <HomeScreen
-                          onAppTap={handleAppTap}
-                          onMisclick={() => handleMisclick('navigation')}
-                          targetApps={targetApps}
-                          simpleMode={simpleMode}
-                          highlightTarget={homeHighlight}
-                          showHint={showHints}
-                        />
-                      )}
-                      
-                      {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
-                        <MessagesApp
-                          onBack={() => setPhoneScreen('home')}
-                          onContactSelect={handleContactSelect}
-                          onSendMessage={handleSendMessage}
-                          onMisclick={() => handleMisclick('targeting')}
-                          targetContact="dr-smith"
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                          currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
-                        />
-                      )}
-                      
-                      {phoneScreen === 'app-store' && (
-                        <AppStoreScreen
-                          onBack={() => setPhoneScreen('home')}
-                          onDownloadApp={handleDownloadApp}
-                          onMisclick={() => handleMisclick('targeting')}
-                          targetApp="zoom"
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                        />
-                      )}
-
-                      {phoneScreen === 'banking' && (
-                        <BankingApp
-                          onBack={() => setPhoneScreen('home')}
-                          onAction={handleBankingAction}
-                          onMisclick={() => handleMisclick('targeting')}
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                          screen={bankingScreen}
-                        />
-                      )}
-
-                      {phoneScreen === 'shopping' && (
-                        <ShoppingApp
-                          onBack={() => setPhoneScreen('home')}
-                          onAction={handleShoppingAction}
-                          onMisclick={() => handleMisclick('targeting')}
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                          screen={shoppingScreen}
-                        />
-                      )}
-
-                      {phoneScreen === 'transport' && (
-                        <TransportApp
-                          onBack={() => setPhoneScreen('home')}
-                          onAction={handleTransportAction}
-                          onMisclick={() => handleMisclick('targeting')}
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                          screen={transportScreen}
-                        />
-                      )}
-
-                      {phoneScreen === 'streaming' && (
-                        <StreamingApp
-                          onBack={() => setPhoneScreen('home')}
-                          onAction={handleStreamingAction}
-                          onMisclick={() => handleMisclick('targeting')}
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                          screen={streamingScreen}
-                        />
-                      )}
-
-                      {phoneScreen === 'homesafety' && (
-                        <HomeSafetyApp
-                          onBack={() => setPhoneScreen('home')}
-                          onAction={handleSafetyAction}
-                          onMisclick={() => handleMisclick('targeting')}
-                          simpleMode={simpleMode}
-                          showHint={showHints}
-                          screen={safetyScreen}
-                        />
-                      )}
-                      
-                      {/* Notification Overlay */}
-                      {showNotification && currentStep?.id === 'eadl1-step5' && (
-                        <NotificationBanner
-                          appName="Messages"
-                          appIcon="💬"
-                          title="New Message"
-                          message="Dr. Smith: Great, I'll see you tomorrow!"
-                          onTap={handleNotificationTap}
-                          onDismiss={() => handleMisclick('attention')}
-                          simpleMode={simpleMode}
-                        />
-                      )}
-                    </>
+                  {phoneScreen === 'lock' && (
+                    <LockScreen
+                      onUnlock={handleUnlock}
+                      onMisclick={() => handleMisclick('targeting')}
+                      simpleMode={simpleMode}
+                    />
+                  )}
+                  {phoneScreen === 'home' && (
+                    <HomeScreen
+                      onAppTap={handleAppTap}
+                      onMisclick={() => handleMisclick('navigation')}
+                      targetApps={targetApps}
+                      simpleMode={simpleMode}
+                      highlightTarget={homeHighlight}
+                      showHint={showHints}
+                    />
+                  )}
+                  {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
+                    <MessagesApp
+                      onBack={() => setPhoneScreen('home')}
+                      onContactSelect={handleContactSelect}
+                      onSendMessage={handleSendMessage}
+                      onMisclick={() => handleMisclick('targeting')}
+                      targetContact="dr-smith"
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                      currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
+                    />
+                  )}
+                  {phoneScreen === 'app-store' && (
+                    <AppStoreScreen
+                      onBack={() => setPhoneScreen('home')}
+                      onDownloadApp={handleDownloadApp}
+                      onMisclick={() => handleMisclick('targeting')}
+                      targetApp="zoom"
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                    />
+                  )}
+                  {phoneScreen === 'banking' && (
+                    <BankingApp
+                      onBack={() => setPhoneScreen('home')}
+                      onAction={handleBankingAction}
+                      onMisclick={() => handleMisclick('targeting')}
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                      screen={bankingScreen}
+                    />
+                  )}
+                  {phoneScreen === 'shopping' && (
+                    <ShoppingApp
+                      onBack={() => setPhoneScreen('home')}
+                      onAction={handleShoppingAction}
+                      onMisclick={() => handleMisclick('targeting')}
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                      screen={shoppingScreen}
+                    />
+                  )}
+                  {phoneScreen === 'transport' && (
+                    <TransportApp
+                      onBack={() => setPhoneScreen('home')}
+                      onAction={handleTransportAction}
+                      onMisclick={() => handleMisclick('targeting')}
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                      screen={transportScreen}
+                    />
+                  )}
+                  {phoneScreen === 'streaming' && (
+                    <StreamingApp
+                      onBack={() => setPhoneScreen('home')}
+                      onAction={handleStreamingAction}
+                      onMisclick={() => handleMisclick('targeting')}
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                      screen={streamingScreen}
+                    />
+                  )}
+                  {phoneScreen === 'homesafety' && (
+                    <HomeSafetyApp
+                      onBack={() => setPhoneScreen('home')}
+                      onAction={handleSafetyAction}
+                      onMisclick={() => handleMisclick('targeting')}
+                      simpleMode={simpleMode}
+                      showHint={showHints}
+                      screen={safetyScreen}
+                    />
+                  )}
+                  {showNotification && currentStep?.id === 'eadl1-step5' && (
+                    <NotificationBanner
+                      appName="Messages"
+                      appIcon="💬"
+                      title="New Message"
+                      message="Dr. Smith: Great, I'll see you tomorrow!"
+                      onTap={handleNotificationTap}
+                      onDismiss={() => handleMisclick('attention')}
+                      simpleMode={simpleMode}
+                    />
                   )}
                 </PhoneFrame>
               </div>
             )}
 
-            {/* Portal Simulator (eADL-2 only) */}
-            {isPortalModule && !isModuleCompletePhase && (
-              <div className="w-full max-w-lg rounded-xl border bg-white shadow-xl overflow-hidden">
-                <div className="h-[600px]">
+            {isPortalModule && (
+              <div className="rounded-xl border bg-white shadow-xl overflow-hidden">
+                <div className="h-[500px]">
                   <PatientPortal
                     onAction={handlePortalAction}
                     onMisclick={() => handleMisclick('navigation')}
@@ -887,76 +906,18 @@ const Assessment: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Assessment Panel */}
-          <div className="space-y-6">
-            {isModuleCompletePhase ? (
-              /* Survey panel when module is complete */
-              <div className="space-y-6">
-                {showCongrats && (
-                  <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
-                    <div className="mb-4 flex justify-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                        <PartyPopper className="h-7 w-7 text-primary" />
-                      </div>
-                    </div>
-                    <h2 className="text-xl font-bold text-foreground mb-2">Task Complete! 🎉</h2>
-                    <p className="text-muted-foreground mb-4">
-                      Great work completing <span className="font-semibold text-foreground">{completedModuleInfo!.name}</span>. 
-                      Now please answer the competency survey below.
-                    </p>
-                    <Button
-                      size="lg"
-                      className="w-full"
-                      onClick={() => {
-                        setShowCongrats(false);
-                        setShowOpenEnded(true);
-                      }}
-                    >
-                      Start Survey
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                )}
-
-                {showOpenEnded && (
-                  <OpenEndedQuestion
-                    question={completedModuleInfo!.question}
-                    onSubmit={handleOpenEndedSubmit}
-                    onSkip={() => handleOpenEndedSubmit('')}
-                    simpleMode={simpleMode}
-                  />
-                )}
-              </div>
-            ) : (
-              <>
-                {/* Step Tracker */}
-                <div className="rounded-xl border bg-card p-6 shadow-sm">
-                  <h2 className="font-semibold text-foreground mb-4">Progress</h2>
-                  <StepTracker
-                    steps={currentModule!.steps}
-                    currentStepIndex={stepIndex}
-                    stepResults={
-                      session!.moduleResults.find(m => m.moduleId === currentModule!.id)?.stepResults || []
-                    }
-                    simpleMode={simpleMode}
-                  />
-                </div>
-
-                {/* Scoring Panel */}
-                <ScoringPanel
-                  stepInstruction={currentStep!.instruction}
-                  automatedScore={automatedScore}
-                  onScoreSubmit={handleStepComplete}
-                  hints={currentStep!.hints}
-                  simpleMode={simpleMode}
-                  allowOverride={true}
-                />
-              </>
-            )}
-          </div>
-        </div>
+            {/* 3. Rating — tap = immediate advance */}
+            <ScoringPanel
+              stepInstruction={currentStep!.instruction}
+              automatedScore={automatedScore}
+              onScoreSubmit={handleStepComplete}
+              hints={currentStep!.hints}
+              simpleMode={simpleMode}
+              allowOverride={true}
+            />
+          </>
+        )}
       </main>
     </div>
   );
