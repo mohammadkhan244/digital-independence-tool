@@ -9,6 +9,12 @@ import {
   EyeTrackingEvent,
 } from '@/types/assessment';
 import { eadlModules } from '@/data/modules';
+import {
+  loadSavedProgress,
+  saveProgress,
+  clearProgress,
+  hasSavedProgress,
+} from './useAssessmentPersistence';
 
 const ASSESSMENT_VERSION = '1.0.0';
 
@@ -31,6 +37,7 @@ const createEmptyStepResult = (stepId: string): StepResult => ({
 export const useAssessment = () => {
   const [session, setSession] = useState<AssessmentSession | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [savedProgressExists] = useState(() => hasSavedProgress());
   const [currentStepStartTime, setCurrentStepStartTime] = useState<number | null>(null);
   const [firstInteractionRecorded, setFirstInteractionRecorded] = useState(false);
   
@@ -41,6 +48,7 @@ export const useAssessment = () => {
 
   // Initialize a new assessment session
   const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false) => {
+    clearProgress();
     const newSession: AssessmentSession = {
       id: generateId(),
       participantId: `P-${Date.now()}`,
@@ -72,9 +80,8 @@ export const useAssessment = () => {
       });
     }
 
-    // Save to session storage
-    sessionStorage.setItem('eadl_session', JSON.stringify(newSession));
-    
+    saveProgress(newSession);
+
     return newSession;
   }, []);
 
@@ -226,8 +233,11 @@ export const useAssessment = () => {
     stepBacktracks.current = 0;
     stepErrors.current = [];
 
-    // Save to session storage
-    sessionStorage.setItem('eadl_session', JSON.stringify(updatedSession));
+    if (isLastStep && isLastModule) {
+      clearProgress();
+    } else {
+      saveProgress(updatedSession);
+    }
 
     // Log eye tracking event
     if (session.eyeTrackingEnabled) {
@@ -270,7 +280,7 @@ export const useAssessment = () => {
       );
       
       const updated = { ...prev, moduleResults: updatedResults };
-      sessionStorage.setItem('eadl_session', JSON.stringify(updated));
+      saveProgress(updated);
       return updated;
     });
   }, [session]);
@@ -280,7 +290,7 @@ export const useAssessment = () => {
     setSession(prev => {
       if (!prev) return null;
       const updated = { ...prev, difficultyMode: mode };
-      sessionStorage.setItem('eadl_session', JSON.stringify(updated));
+      saveProgress(updated);
       return updated;
     });
   }, []);
@@ -415,24 +425,19 @@ export const useAssessment = () => {
 
   // Load session from storage on mount
   useEffect(() => {
-    const saved = sessionStorage.getItem('eadl_session');
+    const saved = loadSavedProgress();
     if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as AssessmentSession;
-        if (!parsed.endTime) {
-          setSession(parsed);
-          setIsRunning(true);
-          setCurrentStepStartTime(Date.now());
-        }
-      } catch (e) {
-        console.error('Failed to load session:', e);
-      }
+      setSession(saved);
+      setIsRunning(true);
+      setCurrentStepStartTime(Date.now());
     }
   }, []);
 
   return {
     session,
     isRunning,
+    savedProgressExists,
+    clearProgress,
     startAssessment,
     completeStep,
     abandonStep,

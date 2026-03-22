@@ -69,6 +69,8 @@ const Assessment: React.FC = () => {
   const {
     session,
     isRunning,
+    savedProgressExists,
+    clearProgress,
     startAssessment,
     completeStep,
     recordMisclick,
@@ -79,6 +81,7 @@ const Assessment: React.FC = () => {
     getAnalytics,
   } = useAssessment();
 
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [phoneScreen, setPhoneScreen] = useState<PhoneScreen>('lock');
   const [portalScreen, setPortalScreen] = useState<PortalScreen>('login');
   const [showNotification, setShowNotification] = useState(false);
@@ -118,9 +121,13 @@ const Assessment: React.FC = () => {
   // Start assessment on mount if not running
   useEffect(() => {
     if (!isRunning && !session) {
-      startAssessment(true, false);
+      if (savedProgressExists) {
+        setShowResumePrompt(true);
+      } else {
+        startAssessment(true, false);
+      }
     }
-  }, [isRunning, session, startAssessment]);
+  }, [isRunning, session, startAssessment, savedProgressExists]);
 
   // ─── Step synchronization ─────────────────────────────────────
   useEffect(() => {
@@ -453,6 +460,7 @@ const Assessment: React.FC = () => {
 
   // Restart current module
   const restartModule = useCallback(() => {
+    clearProgress();
     setPhoneScreen('lock');
     setPortalScreen('login');
     setBankingScreen('login');
@@ -463,10 +471,40 @@ const Assessment: React.FC = () => {
     setShowNotification(false);
     setAutomatedScore(null);
     setStepCompleted(false);
+  }, [clearProgress]);
+
+  const handleResume = useCallback(() => {
+    setShowResumePrompt(false);
   }, []);
+
+  const handleStartOver = useCallback(() => {
+    setShowResumePrompt(false);
+    startAssessment(true, false);
+  }, [startAssessment]);
 
   // Congrats + survey phase uses the same layout but locks the phone
   const isModuleCompletePhase = (showCongrats || showOpenEnded) && completedModuleInfo;
+
+  if (showResumePrompt) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-subtle p-4">
+        <div className="w-full max-w-md rounded-xl border bg-card p-8 shadow-lg text-center">
+          <h2 className="text-xl font-bold text-foreground mb-2">Resume Assessment</h2>
+          <p className="text-muted-foreground mb-6">
+            You have an unfinished assessment saved. Would you like to resume where you left off?
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button size="lg" onClick={handleResume} className="w-full">
+              Resume
+            </Button>
+            <Button size="lg" variant="outline" onClick={handleStartOver} className="w-full">
+              Start Over
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isModuleCompletePhase && (!session || !currentModule || !currentStep)) {
     return (
