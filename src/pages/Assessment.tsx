@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAssessment } from '@/hooks/useAssessment';
-import { eadlModules } from '@/data/modules';
+import { eadlModules, getModuleIcon } from '@/data/modules';
 import { PhoneFrame } from '@/components/phone/PhoneFrame';
 import { LockScreen } from '@/components/phone/LockScreen';
 import { HomeScreen } from '@/components/phone/HomeScreen';
@@ -19,14 +19,17 @@ import { StepTracker } from '@/components/assessment/StepTracker';
 import { ScoringPanel } from '@/components/assessment/ScoringPanel';
 import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Settings, 
-  Eye, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Eye,
   Sliders,
   RotateCcw,
   PartyPopper,
+  CheckCircle2,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType } from '@/types/assessment';
 
@@ -82,6 +85,7 @@ const Assessment: React.FC = () => {
   } = useAssessment();
 
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [showModuleOverview, setShowModuleOverview] = useState(true);
   const [phoneScreen, setPhoneScreen] = useState<PhoneScreen>('lock');
   const [portalScreen, setPortalScreen] = useState<PortalScreen>('login');
   const [showNotification, setShowNotification] = useState(false);
@@ -118,16 +122,13 @@ const Assessment: React.FC = () => {
   const isPortalModule = currentModule?.id === 'eadl-2' && !isEadl2Step1;
   const moduleId = currentModule?.id || '';
 
-  // Start assessment on mount if not running
+  // Show resume prompt on mount if saved progress exists; otherwise the
+  // overview is already visible and the user clicks Begin to start fresh.
   useEffect(() => {
-    if (!isRunning && !session) {
-      if (savedProgressExists) {
-        setShowResumePrompt(true);
-      } else {
-        startAssessment(true, false);
-      }
+    if (!isRunning && !session && savedProgressExists) {
+      setShowResumePrompt(true);
     }
-  }, [isRunning, session, startAssessment, savedProgressExists]);
+  }, [isRunning, session, savedProgressExists]);
 
   // ─── Step synchronization ─────────────────────────────────────
   useEffect(() => {
@@ -442,6 +443,21 @@ const Assessment: React.FC = () => {
     }
   }, [currentStep, stepCompleted]);
 
+  // ─── Module overview helpers ───────────────────────────────────
+  const getModuleState = (index: number): 'completed' | 'active' | 'locked' => {
+    const activeIndex = session ? session.currentModuleIndex : 0;
+    if (index < activeIndex) return 'completed';
+    if (index === activeIndex) return 'active';
+    return 'locked';
+  };
+
+  const handleEnterModule = useCallback(() => {
+    if (!session) {
+      startAssessment(true, false);
+    }
+    setShowModuleOverview(false);
+  }, [session, startAssessment]);
+
   const handleMisclick = useCallback((errorType: ErrorType = 'targeting') => {
     recordMisclick(errorType);
   }, [recordMisclick]);
@@ -450,8 +466,14 @@ const Assessment: React.FC = () => {
   const handleOpenEndedSubmit = useCallback((response: string) => {
     setOpenEndedResponse(response);
     setShowOpenEnded(false);
+    setShowCongrats(false);
     setCompletedModuleInfo(null);
-  }, [setOpenEndedResponse]);
+    if (session?.endTime) {
+      navigate('/dashboard');
+    } else {
+      setShowModuleOverview(true);
+    }
+  }, [setOpenEndedResponse, session, navigate]);
 
   // Toggle difficulty mode
   const toggleDifficulty = useCallback(() => {
@@ -502,6 +524,127 @@ const Assessment: React.FC = () => {
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (showModuleOverview) {
+    const activeIndex = session ? session.currentModuleIndex : 0;
+    const completedCount = activeIndex;
+    const isFirst = completedCount === 0;
+    const activeModule = eadlModules[activeIndex];
+
+    return (
+      <div className="min-h-screen bg-gradient-subtle">
+        {/* Header */}
+        <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md">
+          <div className="container flex h-16 items-center justify-between px-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="font-semibold text-foreground">eADL Assessment</h1>
+                <p className="text-sm text-muted-foreground">
+                  {completedCount} of {eadlModules.length} modules complete
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="container px-4 py-8">
+          {/* Intro text */}
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              {isFirst ? 'Ready to Begin?' : 'Module Complete!'}
+            </h2>
+            <p className="text-muted-foreground">
+              {isFirst
+                ? 'Complete all 7 modules to finish the assessment.'
+                : `You've completed ${completedCount} of ${eadlModules.length} modules. Keep going!`}
+            </p>
+          </div>
+
+          {/* Module cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
+            {eadlModules.map((module, index) => {
+              const state = getModuleState(index);
+              return (
+                <div
+                  key={module.id}
+                  onClick={state === 'active' ? handleEnterModule : undefined}
+                  className={cn(
+                    'rounded-xl border p-5 transition-all',
+                    state === 'completed' && 'bg-muted/50 border-border',
+                    state === 'active' &&
+                      'bg-card border-primary shadow-md cursor-pointer ring-1 ring-primary/30 hover:shadow-lg',
+                    state === 'locked' && 'bg-card opacity-40 cursor-not-allowed select-none',
+                  )}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Icon */}
+                    <div
+                      className={cn(
+                        'flex h-12 w-12 items-center justify-center rounded-xl flex-shrink-0',
+                        state === 'completed' && 'bg-success/10',
+                        state === 'active' && 'bg-primary/10 text-2xl',
+                        state === 'locked' && 'bg-muted text-2xl',
+                      )}
+                    >
+                      {state === 'completed' ? (
+                        <CheckCircle2 className="h-6 w-6 text-success" />
+                      ) : state === 'locked' ? (
+                        <Lock className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        getModuleIcon(module.icon)
+                      )}
+                    </div>
+
+                    {/* Text */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          eADL {index + 1}
+                        </span>
+                        {state === 'completed' && (
+                          <span className="text-xs font-semibold text-success">Done</span>
+                        )}
+                        {state === 'active' && (
+                          <span className="text-xs font-semibold text-primary">Up Next</span>
+                        )}
+                      </div>
+                      <h3
+                        className={cn(
+                          'font-semibold',
+                          state === 'completed' ? 'text-muted-foreground' : 'text-foreground',
+                        )}
+                      >
+                        {module.name}
+                      </h3>
+                      {state !== 'locked' && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {module.description}
+                        </p>
+                      )}
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {module.steps.length} steps
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* CTA button */}
+          <div className="flex justify-center">
+            <Button size="lg" onClick={handleEnterModule} className="gap-2 px-8">
+              {isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
+        </main>
       </div>
     );
   }
