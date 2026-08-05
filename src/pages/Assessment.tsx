@@ -79,6 +79,7 @@ const Assessment: React.FC = () => {
     startAssessment,
     completeStep,
     recordMisclick,
+    jumpToModule,
     setOpenEndedResponse,
     setDifficultyMode,
     getCurrentContext,
@@ -249,19 +250,36 @@ const Assessment: React.FC = () => {
   );
 
   // ─── Module overview helpers ───────────────────────────────────
-  const getModuleState = (index: number): 'completed' | 'active' | 'locked' => {
-    const activeIndex = session ? session.currentModuleIndex : 0;
-    if (index < activeIndex) return 'completed';
-    if (index === activeIndex) return 'active';
-    return 'locked';
-  };
 
+  // A module is completed when all its steps have been scored
+  const isModuleCompleted = useCallback(
+    (moduleId: string): boolean => {
+      if (!session) return false;
+      const result = session.moduleResults.find(r => r.moduleId === moduleId);
+      if (!result) return false;
+      const def = eadlModules.find(m => m.id === moduleId);
+      return result.stepResults.length >= (def?.steps.length ?? 0);
+    },
+    [session],
+  );
+
+  // Enter a specific module by index — supports non-sequential access
+  const handleEnterSpecificModule = useCallback(
+    (moduleIndex: number) => {
+      if (!session) {
+        startAssessment(true, false, moduleIndex);
+      } else {
+        jumpToModule(moduleIndex);
+      }
+      setShowModuleOverview(false);
+    },
+    [session, startAssessment, jumpToModule],
+  );
+
+  // Keep the old name for the CTA button (resumes from wherever we are)
   const handleEnterModule = useCallback(() => {
-    if (!session) {
-      startAssessment(true, false);
-    }
-    setShowModuleOverview(false);
-  }, [session, startAssessment]);
+    handleEnterSpecificModule(session ? session.currentModuleIndex : 0);
+  }, [handleEnterSpecificModule, session]);
 
   // ─── Open-ended response ──────────────────────────────────────
   const handleOpenEndedSubmit = useCallback(
@@ -355,12 +373,14 @@ const Assessment: React.FC = () => {
           {/* Intro */}
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-2">
-              {isFirst ? 'Ready to Begin?' : 'Module Complete!'}
+              {completedCount === 0 ? 'Ready to Begin?' : completedCount === eadlModules.length ? 'All Done!' : 'Module Complete!'}
             </h2>
             <p className="text-muted-foreground">
-              {isFirst
-                ? 'Complete both active modules to finish the assessment.'
-                : `You've completed ${completedCount} of ${eadlModules.length} active modules. Keep going!`}
+              {completedCount === 0
+                ? 'Tap either module below to begin — you can complete them in any order.'
+                : completedCount === eadlModules.length
+                ? 'Both modules completed. Great work!'
+                : `${completedCount} of ${eadlModules.length} modules complete. Tap the remaining module to continue.`}
             </p>
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
@@ -372,32 +392,34 @@ const Assessment: React.FC = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
             {/* ── Active / completable modules ── */}
             {eadlModules.map((module, index) => {
-              const state = getModuleState(index);
+              const completed = isModuleCompleted(module.id);
+              const remainingCount = eadlModules.filter(m => !isModuleCompleted(m.id)).length;
+              const badgeLabel = completed
+                ? 'Done'
+                : remainingCount === 1
+                ? 'Up Next'
+                : 'Available';
+
               return (
                 <div
                   key={module.id}
-                  onClick={state === 'active' ? handleEnterModule : undefined}
+                  onClick={completed ? undefined : () => handleEnterSpecificModule(index)}
                   className={cn(
                     'rounded-xl border p-5 transition-all',
-                    state === 'completed' && 'bg-muted/50 border-border',
-                    state === 'active' &&
-                      'bg-card border-primary shadow-md cursor-pointer ring-1 ring-primary/30 hover:shadow-lg',
-                    state === 'locked' && 'bg-card opacity-50 cursor-not-allowed select-none',
+                    completed
+                      ? 'bg-muted/50 border-border cursor-default'
+                      : 'bg-card border-primary shadow-md cursor-pointer ring-1 ring-primary/30 hover:shadow-lg active:scale-[0.99]',
                   )}
                 >
                   <div className="flex items-start gap-4">
                     <div
                       className={cn(
                         'flex h-12 w-12 items-center justify-center rounded-xl flex-shrink-0',
-                        state === 'completed' && 'bg-success/10',
-                        state === 'active' && 'bg-primary/10 text-2xl',
-                        state === 'locked' && 'bg-muted text-2xl',
+                        completed ? 'bg-success/10' : 'bg-primary/10 text-2xl',
                       )}
                     >
-                      {state === 'completed' ? (
+                      {completed ? (
                         <CheckCircle2 className="h-6 w-6 text-success" />
-                      ) : state === 'locked' ? (
-                        <Lock className="h-5 w-5 text-muted-foreground" />
                       ) : (
                         getModuleIcon(module.icon)
                       )}
@@ -407,26 +429,26 @@ const Assessment: React.FC = () => {
                         <span className="text-xs font-medium text-muted-foreground">
                           Module {index + 1}
                         </span>
-                        {state === 'completed' && (
-                          <span className="text-xs font-semibold text-success">Done</span>
-                        )}
-                        {state === 'active' && (
-                          <span className="text-xs font-semibold text-primary">Up Next</span>
-                        )}
+                        <span
+                          className={cn(
+                            'text-xs font-semibold',
+                            completed ? 'text-success' : 'text-primary',
+                          )}
+                        >
+                          {badgeLabel}
+                        </span>
                       </div>
                       <h3
                         className={cn(
                           'font-semibold',
-                          state === 'completed' ? 'text-muted-foreground' : 'text-foreground',
+                          completed ? 'text-muted-foreground' : 'text-foreground',
                         )}
                       >
                         {module.name}
                       </h3>
-                      {state !== 'locked' && (
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {module.description}
-                        </p>
-                      )}
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {module.description}
+                      </p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{module.steps.length} tasks</span>
                         <span>·</span>

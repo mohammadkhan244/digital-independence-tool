@@ -47,13 +47,13 @@ export const useAssessment = () => {
   const stepErrors = useRef<ErrorType[]>([]);
 
   // Initialize a new assessment session
-  const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false) => {
+  const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0) => {
     clearProgress();
     const newSession: AssessmentSession = {
       id: generateId(),
       participantId: `P-${Date.now()}`,
       startTime: Date.now(),
-      currentModuleIndex: 0,
+      currentModuleIndex: startModuleIndex,
       currentStepIndex: 0,
       difficultyMode: 'simple',
       adaptiveModeEnabled: adaptiveMode,
@@ -163,7 +163,18 @@ export const useAssessment = () => {
 
     // Move to next step or module
     const isLastStep = session.currentStepIndex >= currentModule.steps.length - 1;
-    const isLastModule = session.currentModuleIndex >= eadlModules.length - 1;
+
+    // Determine if ALL modules will be completed after this step
+    const completedModuleIdsAfterThis = new Set([
+      ...updatedModuleResults
+        .filter(m => {
+          const def = eadlModules.find(d => d.id === m.moduleId);
+          return def && m.stepResults.length >= def.steps.length;
+        })
+        .map(m => m.moduleId),
+      currentModule.id,
+    ]);
+    const isLastModule = completedModuleIdsAfterThis.size >= eadlModules.length;
 
     let newModuleIndex = session.currentModuleIndex;
     let newStepIndex = session.currentStepIndex + 1;
@@ -177,24 +188,24 @@ export const useAssessment = () => {
       }, 0);
       const scoredSteps = moduleResult.stepResults.filter(s => s.score !== 'N/A');
       const independentSteps = moduleResult.stepResults.filter(s => s.score === 2).length;
-      
-      const errorCounts: Record<ErrorType, number> = { 
-        navigation: 0, targeting: 0, sequencing: 0, attention: 0, abandonment: 0 
+
+      const errorCounts: Record<ErrorType, number> = {
+        navigation: 0, targeting: 0, sequencing: 0, attention: 0, abandonment: 0
       };
       moduleResult.stepResults.forEach(s => {
         s.errors.forEach(e => errorCounts[e]++);
         if (s.abandoned) errorCounts.abandonment++;
       });
 
-      updatedModuleResults = updatedModuleResults.map(m => 
+      updatedModuleResults = updatedModuleResults.map(m =>
         m.moduleId === currentModule.id
           ? {
               ...m,
               endTime: Date.now(),
               totalTime: Date.now() - m.startTime,
               subtotalScore: totalScore,
-              independentStepsPercentage: scoredSteps.length > 0 
-                ? (independentSteps / scoredSteps.length) * 100 
+              independentStepsPercentage: scoredSteps.length > 0
+                ? (independentSteps / scoredSteps.length) * 100
                 : 0,
               errorsByType: errorCounts,
             }
@@ -202,14 +213,16 @@ export const useAssessment = () => {
       );
 
       if (!isLastModule) {
-        newModuleIndex = session.currentModuleIndex + 1;
+        // Find the first uncompleted module (non-sequential support)
+        const nextIdx = eadlModules.findIndex(m => !completedModuleIdsAfterThis.has(m.id));
+        newModuleIndex = nextIdx >= 0 ? nextIdx : session.currentModuleIndex;
         newStepIndex = 0;
 
         // Adaptive difficulty logic
         if (session.adaptiveModeEnabled) {
           const moduleResult = updatedModuleResults.find(m => m.moduleId === currentModule.id)!;
           const totalErrors = Object.values(moduleResult.errorsByType).reduce((a, b) => a + b, 0);
-          
+
           if (moduleResult.independentStepsPercentage >= 80 && totalErrors <= 2) {
             // Progress to complex mode
             setSession(prev => prev ? { ...prev, difficultyMode: 'complex' } : null);
@@ -383,6 +396,21 @@ export const useAssessment = () => {
     };
   }, [session]);
 
+  // Jump to a specific module (supports non-sequential access)
+  const jumpToModule = useCallback((index: number) => {
+    setSession(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, currentModuleIndex: index, currentStepIndex: 0 };
+      saveProgress(updated);
+      return updated;
+    });
+    setCurrentStepStartTime(Date.now());
+    setFirstInteractionRecorded(false);
+    stepMisclicks.current = 0;
+    stepBacktracks.current = 0;
+    stepErrors.current = [];
+  }, []);
+
   // Export data as CSV
   const exportCSV = useCallback(() => {
     if (!session) return '';
@@ -444,6 +472,7 @@ export const useAssessment = () => {
     recordInteraction,
     recordMisclick,
     recordBacktrack,
+    jumpToModule,
     setOpenEndedResponse,
     setDifficultyMode,
     getCurrentContext,
