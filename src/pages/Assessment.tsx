@@ -4,17 +4,11 @@ import { cn } from '@/lib/utils';
 import { useAssessment } from '@/hooks/useAssessment';
 import { eadlModules, getModuleIcon } from '@/data/modules';
 import { PhoneFrame } from '@/components/phone/PhoneFrame';
-import { LockScreen } from '@/components/phone/LockScreen';
 import { HomeScreen } from '@/components/phone/HomeScreen';
 import { MessagesApp } from '@/components/phone/MessagesApp';
-import { AppStoreScreen } from '@/components/phone/AppStoreScreen';
-import { NotificationBanner } from '@/components/phone/NotificationBanner';
-import { BankingApp } from '@/components/phone/BankingApp';
-import { ShoppingApp } from '@/components/phone/ShoppingApp';
-import { TransportApp } from '@/components/phone/TransportApp';
-import { StreamingApp } from '@/components/phone/StreamingApp';
-import { HomeSafetyApp } from '@/components/phone/HomeSafetyApp';
-import { PatientPortal } from '@/components/portal/PatientPortal';
+import { GmailApp } from '@/components/phone/GmailApp';
+import { TelehealthCall } from '@/components/phone/TelehealthCall';
+import { MyChartPortal } from '@/components/portal/MyChartPortal';
 import { ScoringPanel } from '@/components/assessment/ScoringPanel';
 import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
 import { Button } from '@/components/ui/button';
@@ -25,46 +19,55 @@ import {
   RotateCcw,
   PartyPopper,
   CheckCircle2,
-  Lock,
   ArrowRight,
   AlertTriangle,
   Clock,
+  Lock,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType } from '@/types/assessment';
 
-type PhoneScreen = 'lock' | 'home' | 'messages' | 'messages-conversation' | 'app-store'
-  | 'banking' | 'shopping' | 'transport' | 'streaming' | 'homesafety';
-type PortalScreen = 'login' | 'home' | 'results' | 'messages' | 'medications' | 'video';
+type PhoneScreen =
+  | 'home'
+  | 'messages'
+  | 'messages-conversation'
+  | 'gmail'
+  | 'telehealth';
 
-// Map module IDs to their target apps on the home screen
-const moduleTargetApps: Record<string, string[]> = {
-  'eadl-1': ['messages', 'appstore'],
-  'eadl-2': ['myhealth'],
-  'eadl-3': ['safebank'],
-  'eadl-4': ['quickshop'],
-  'eadl-5': ['maps'],
-  'eadl-6': ['streamtv'],
-  'eadl-7': ['reminders', 'homesafe'],
-};
+type MyChartScreen = 'results' | 'appointments' | 'messages';
 
-// Map module IDs to their main app on the home screen
-const moduleMainApp: Record<string, string> = {
-  'eadl-2': 'myhealth',
-  'eadl-3': 'safebank',
-  'eadl-4': 'quickshop',
-  'eadl-5': 'maps',
-  'eadl-6': 'streamtv',
-  'eadl-7': 'homesafe',
-};
-
-// Map module IDs to their phone screen state
-const moduleAppScreen: Record<string, PhoneScreen> = {
-  'eadl-3': 'banking',
-  'eadl-4': 'shopping',
-  'eadl-5': 'transport',
-  'eadl-6': 'streaming',
-  'eadl-7': 'homesafety',
-};
+// Static "coming soon" placeholders shown below the active modules
+const comingSoonModules = [
+  {
+    name: 'Money Management',
+    icon: '💳',
+    category: 'Module 3',
+    description: 'Use a banking app to check balances, pay bills, and handle security alerts.',
+  },
+  {
+    name: 'Shopping & Pharmacy',
+    icon: '🛒',
+    category: 'Module 4',
+    description: 'Order products online and manage pharmacy prescriptions.',
+  },
+  {
+    name: 'Transportation & Navigation',
+    icon: '📍',
+    category: 'Module 5',
+    description: 'Use maps and ride-sharing apps to get around.',
+  },
+  {
+    name: 'Social & Leisure',
+    icon: '▶️',
+    category: 'Module 6',
+    description: 'Use streaming services and entertainment apps for everyday enjoyment.',
+  },
+  {
+    name: 'Home & Safety',
+    icon: '🛡️',
+    category: 'Module 7',
+    description: 'Manage reminders, respond to alerts, and access emergency services.',
+  },
+];
 
 const Assessment: React.FC = () => {
   const navigate = useNavigate();
@@ -76,34 +79,23 @@ const Assessment: React.FC = () => {
     startAssessment,
     completeStep,
     recordMisclick,
-    recordBacktrack,
     setOpenEndedResponse,
     setDifficultyMode,
     getCurrentContext,
-    getAnalytics,
   } = useAssessment();
 
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [showModuleOverview, setShowModuleOverview] = useState(true);
-  const [phoneScreen, setPhoneScreen] = useState<PhoneScreen>('lock');
-  const [portalScreen, setPortalScreen] = useState<PortalScreen>('login');
-  const [showNotification, setShowNotification] = useState(false);
+  const [phoneScreen, setPhoneScreen] = useState<PhoneScreen>('home');
+  const [myChartScreen, setMyChartScreen] = useState<MyChartScreen>('results');
   const [showOpenEnded, setShowOpenEnded] = useState(false);
   const [automatedScore, setAutomatedScore] = useState<Score | null>(null);
   const [stepCompleted, setStepCompleted] = useState(false);
-  const [completedModuleInfo, setCompletedModuleInfo] = useState<{ name: string; question: string } | null>(null);
+  const [completedModuleInfo, setCompletedModuleInfo] = useState<{
+    name: string;
+    question: string;
+  } | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
-
-  // Banking sub-screen state
-  const [bankingScreen, setBankingScreen] = useState<'login' | 'home' | 'transactions' | 'bill-pay' | 'security-alert'>('login');
-  // Shopping sub-screen state
-  const [shoppingScreen, setShoppingScreen] = useState<'home' | 'search-results' | 'cart' | 'checkout' | 'order-status'>('home');
-  // Transport sub-screen state
-  const [transportScreen, setTransportScreen] = useState<'home' | 'destination' | 'route' | 'ride-request' | 'ride-tracking'>('home');
-  // Streaming sub-screen state
-  const [streamingScreen, setStreamingScreen] = useState<'home' | 'search-results' | 'player' | 'controls'>('home');
-  // HomeSafety sub-screen state
-  const [safetyScreen, setSafetyScreen] = useState<'reminders' | 'alert' | 'emergency' | 'settings'>('reminders');
 
   const context = getCurrentContext();
   const currentModule = context?.module;
@@ -113,15 +105,10 @@ const Assessment: React.FC = () => {
   const simpleMode = session?.difficultyMode === 'simple';
   const showHints = simpleMode;
 
-  // Determine which simulator to show based on current module
-  // eADL-2 step 1 uses the phone home screen; subsequent steps use the portal
-  const isEadl2Step1 = currentModule?.id === 'eadl-2' && currentStep?.id === 'eadl2-step1';
-  const isPhoneModule = currentModule?.id !== 'eadl-2' || isEadl2Step1;
-  const isPortalModule = currentModule?.id === 'eadl-2' && !isEadl2Step1;
-  const moduleId = currentModule?.id || '';
+  const isDCModule = currentModule?.id === 'digital-comms';
+  const isEHRModule = currentModule?.id === 'ehr';
 
-  // Show resume prompt on mount if saved progress exists; otherwise the
-  // overview is already visible and the user clicks Begin to start fresh.
+  // Show resume prompt on mount if saved progress exists
   useEffect(() => {
     if (!isRunning && !session && savedProgressExists) {
       setShowResumePrompt(true);
@@ -137,309 +124,129 @@ const Assessment: React.FC = () => {
     const mid = currentModule.id;
     const sid = currentStep.id;
 
-    // eADL-1: Online Communication
-    if (mid === 'eadl-1') {
+    if (mid === 'digital-comms') {
       switch (sid) {
-        case 'eadl1-step1': setPhoneScreen('lock'); setShowNotification(false); break;
-        case 'eadl1-step2': setPhoneScreen('home'); setShowNotification(false); break;
-        case 'eadl1-step3': setPhoneScreen('messages'); setShowNotification(false); break;
-        case 'eadl1-step4': setPhoneScreen('messages-conversation'); setShowNotification(false); break;
-        case 'eadl1-step5': setPhoneScreen('messages-conversation'); setShowNotification(true); break;
-        case 'eadl1-step6': setPhoneScreen('home'); setShowNotification(false); break;
+        case 'dc-step1': setPhoneScreen('home'); break;
+        case 'dc-step2': setPhoneScreen('gmail'); break;
+        case 'dc-step3': setPhoneScreen('telehealth'); break;
       }
-    }
-    // eADL-2: Telehealth (portal) — step 1 shows phone home screen
-    else if (mid === 'eadl-2') {
+    } else if (mid === 'ehr') {
       switch (sid) {
-        case 'eadl2-step1': setPhoneScreen('home'); break;
-        case 'eadl2-step2': setPortalScreen('login'); break;
-        case 'eadl2-step3': setPortalScreen('home'); break;
-        case 'eadl2-step4': setPortalScreen('messages'); break;
-        case 'eadl2-step5': setPortalScreen('medications'); break;
-        case 'eadl2-step6': setPortalScreen('video'); break;
-      }
-    }
-    // eADL-3: Banking
-    else if (mid === 'eadl-3') {
-      switch (sid) {
-        case 'eadl3-step1': setPhoneScreen('home'); break;
-        case 'eadl3-step2': setPhoneScreen('banking'); setBankingScreen('login'); break;
-        case 'eadl3-step3': setPhoneScreen('banking'); setBankingScreen('home'); break;
-        case 'eadl3-step4': setPhoneScreen('banking'); setBankingScreen('transactions'); break;
-        case 'eadl3-step5': setPhoneScreen('banking'); setBankingScreen('bill-pay'); break;
-        case 'eadl3-step6': setPhoneScreen('banking'); setBankingScreen('security-alert'); break;
-      }
-    }
-    // eADL-4: Shopping
-    else if (mid === 'eadl-4') {
-      switch (sid) {
-        case 'eadl4-step1': setPhoneScreen('home'); break;
-        case 'eadl4-step2': setPhoneScreen('shopping'); setShoppingScreen('home'); break;
-        case 'eadl4-step3': setPhoneScreen('shopping'); setShoppingScreen('search-results'); break;
-        case 'eadl4-step4': setPhoneScreen('shopping'); setShoppingScreen('checkout'); break;
-        case 'eadl4-step5': setPhoneScreen('shopping'); setShoppingScreen('order-status'); break;
-      }
-    }
-    // eADL-5: Transport
-    else if (mid === 'eadl-5') {
-      switch (sid) {
-        case 'eadl5-step1': setPhoneScreen('home'); break;
-        case 'eadl5-step2': setPhoneScreen('transport'); setTransportScreen('destination'); break;
-        case 'eadl5-step3': setPhoneScreen('transport'); setTransportScreen('route'); break;
-        case 'eadl5-step4': setPhoneScreen('transport'); setTransportScreen('ride-request'); break;
-        case 'eadl5-step5': setPhoneScreen('transport'); setTransportScreen('ride-tracking'); break;
-      }
-    }
-    // eADL-6: Streaming
-    else if (mid === 'eadl-6') {
-      switch (sid) {
-        case 'eadl6-step1': setPhoneScreen('home'); break;
-        case 'eadl6-step2': setPhoneScreen('streaming'); setStreamingScreen('home'); break;
-        case 'eadl6-step3': setPhoneScreen('streaming'); setStreamingScreen('search-results'); break;
-        case 'eadl6-step4': setPhoneScreen('streaming'); setStreamingScreen('player'); break;
-        case 'eadl6-step5': setPhoneScreen('streaming'); setStreamingScreen('player'); break;
-      }
-    }
-    // eADL-7: Home & Safety
-    else if (mid === 'eadl-7') {
-      switch (sid) {
-        case 'eadl7-step1': setPhoneScreen('home'); break;
-        case 'eadl7-step2': setPhoneScreen('homesafety'); setSafetyScreen('reminders'); break;
-        case 'eadl7-step3': setPhoneScreen('homesafety'); setSafetyScreen('alert'); break;
-        case 'eadl7-step4': setPhoneScreen('homesafety'); setSafetyScreen('emergency'); break;
-        case 'eadl7-step5': setPhoneScreen('homesafety'); setSafetyScreen('settings'); break;
+        case 'ehr-step1': setMyChartScreen('results'); break;
+        case 'ehr-step2': setMyChartScreen('appointments'); break;
+        case 'ehr-step3': setMyChartScreen('messages'); break;
       }
     }
   }, [currentModule?.id, currentStep?.id]);
 
-  // Handle step completion logic
-  const handleStepComplete = useCallback((score: Score) => {
-    // Capture module info BEFORE completeStep advances to next module
-    const isLastStep = currentModule && stepIndex >= currentModule.steps.length - 1;
-    if (isLastStep && currentModule) {
-      setCompletedModuleInfo({
-        name: currentModule.name,
-        question: currentModule.openEndedQuestion,
-      });
-    }
-
-    setAutomatedScore(null);
-    setStepCompleted(false);
-    completeStep(score);
-    
-    // Show congrats when module is complete
-    if (isLastStep) {
-      setShowCongrats(true);
-    }
-  }, [completeStep, currentModule, stepIndex]);
-
-  // ─── eADL-1 handlers ──────────────────────────────────────────
-  const handleUnlock = useCallback(() => {
-    if (currentStep?.id === 'eadl1-step1' && !stepCompleted) {
-      setPhoneScreen('home');
-      setAutomatedScore(2);
-      setStepCompleted(true);
-    }
-  }, [currentStep, stepCompleted]);
-
-  const handleAppTap = useCallback((appId: string) => {
-    if (stepCompleted) return;
-    const sid = currentStep?.id;
-    const mid = currentModule?.id;
-
-    // eADL-1 step 2: open messages
-    if (sid === 'eadl1-step2' && appId === 'messages') {
-      setPhoneScreen('messages');
-      setAutomatedScore(2);
-      setStepCompleted(true);
-      return;
-    }
-    // eADL-1 step 6: open app store
-    if (sid === 'eadl1-step6' && appId === 'appstore') {
-      setPhoneScreen('app-store');
-      return;
-    }
-
-    // eADL-2 step 1: open MyHealth portal
-    if (mid === 'eadl-2' && sid === 'eadl2-step1' && appId === 'myhealth') {
-      setPortalScreen('login');
-      setAutomatedScore(2);
-      setStepCompleted(true);
-      return;
-    }
-
-    // Generic: open the module's main app (step 1 for eADL 3-7)
-    if (mid && moduleMainApp[mid] && appId === moduleMainApp[mid]) {
-      const appScreen = moduleAppScreen[mid];
-      if (appScreen) {
-        setPhoneScreen(appScreen);
-        // Score step 1 (open the app)
-        if (sid?.endsWith('-step1')) {
-          setAutomatedScore(2);
-          setStepCompleted(true);
-        }
+  // ─── Step completion ──────────────────────────────────────────
+  const handleStepComplete = useCallback(
+    (score: Score) => {
+      const isLastStep =
+        currentModule != null && stepIndex >= currentModule.steps.length - 1;
+      if (isLastStep && currentModule) {
+        setCompletedModuleInfo({
+          name: currentModule.name,
+          question: currentModule.openEndedQuestion,
+        });
       }
-    }
-  }, [currentStep, currentModule, stepCompleted]);
 
-  const handleDownloadApp = useCallback((appId: string) => {
-    if (currentStep?.id === 'eadl1-step6' && appId === 'zoom' && !stepCompleted) {
-      setAutomatedScore(2);
-      setStepCompleted(true);
-    }
-  }, [currentStep, stepCompleted]);
+      setAutomatedScore(null);
+      setStepCompleted(false);
+      completeStep(score);
 
-  const handleContactSelect = useCallback((contactId: string) => {
-    if (currentStep?.id === 'eadl1-step3' && contactId === 'dr-smith' && !stepCompleted) {
-      setPhoneScreen('messages-conversation');
-      setAutomatedScore(2);
-      setStepCompleted(true);
-    }
-  }, [currentStep, stepCompleted]);
+      if (isLastStep) {
+        setShowCongrats(true);
+      }
+    },
+    [completeStep, currentModule, stepIndex],
+  );
 
-  const handleSendMessage = useCallback((message: string) => {
-    if (currentStep?.id === 'eadl1-step4' && !stepCompleted) {
-      setAutomatedScore(2);
-      setStepCompleted(true);
-    }
-  }, [currentStep, stepCompleted]);
+  // ─── Digital Comms: SMS handlers ─────────────────────────────
+  const handleAppTap = useCallback(
+    (appId: string) => {
+      if (stepCompleted) return;
+      const sid = currentStep?.id;
+      if (sid === 'dc-step1' && appId === 'messages') {
+        setPhoneScreen('messages');
+      }
+    },
+    [currentStep, stepCompleted],
+  );
 
-  const handleNotificationTap = useCallback(() => {
-    if (currentStep?.id === 'eadl1-step5' && !stepCompleted) {
-      setShowNotification(false);
-      setAutomatedScore(2);
-      setStepCompleted(true);
-    }
-  }, [currentStep, stepCompleted]);
+  const handleContactSelect = useCallback(
+    (contactId: string) => {
+      if (stepCompleted) return;
+      const sid = currentStep?.id;
+      if (sid === 'dc-step1' && contactId === 'daughter') {
+        setPhoneScreen('messages-conversation');
+      }
+    },
+    [currentStep, stepCompleted],
+  );
 
-  // ─── eADL-2 portal handlers ───────────────────────────────────
-  const handlePortalAction = useCallback((action: string) => {
-    if (stepCompleted) return;
-    switch (action) {
-      case 'login':
-        if (currentStep?.id === 'eadl2-step2') { setPortalScreen('home'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'view_results':
-        if (currentStep?.id === 'eadl2-step3') { setPortalScreen('results'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'send_message':
-        if (currentStep?.id === 'eadl2-step4') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'request_refill':
-        if (currentStep?.id === 'eadl2-step5') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'toggle_camera':
-      case 'toggle_mic':
-        if (currentStep?.id === 'eadl2-step6') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-    }
-  }, [currentStep, stepCompleted]);
+  const handleSendMessage = useCallback(
+    (_message: string) => {
+      if (stepCompleted) return;
+      if (currentStep?.id === 'dc-step1') {
+        setAutomatedScore(2);
+        setStepCompleted(true);
+      }
+    },
+    [currentStep, stepCompleted],
+  );
 
-  // ─── eADL-3 banking handlers ──────────────────────────────────
-  const handleBankingAction = useCallback((action: string) => {
-    if (stepCompleted) return;
-    const sid = currentStep?.id;
-    switch (action) {
-      case 'authenticate':
-        if (sid === 'eadl3-step2') { setBankingScreen('home'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'view_balance':
-        if (sid === 'eadl3-step3') { setBankingScreen('transactions'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'view_transactions':
-        if (sid === 'eadl3-step4') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'pay_bill':
-        if (sid === 'eadl3-step5') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'handle_alert':
-        if (sid === 'eadl3-step6') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-    }
-  }, [currentStep, stepCompleted]);
+  // ─── Digital Comms: Gmail handler ────────────────────────────
+  const handleGmailAction = useCallback(
+    (action: string) => {
+      if (stepCompleted) return;
+      if (action === 'send_email' && currentStep?.id === 'dc-step2') {
+        setAutomatedScore(2);
+        setStepCompleted(true);
+      }
+    },
+    [currentStep, stepCompleted],
+  );
 
-  // ─── eADL-4 shopping handlers ─────────────────────────────────
-  const handleShoppingAction = useCallback((action: string) => {
-    if (stepCompleted) return;
-    const sid = currentStep?.id;
-    switch (action) {
-      case 'search':
-        if (sid === 'eadl4-step2') { setShoppingScreen('search-results'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'add_item':
-        if (sid === 'eadl4-step3') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'confirm_checkout':
-        if (sid === 'eadl4-step4') { setShoppingScreen('order-status'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'view_order':
-        if (sid === 'eadl4-step5') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-    }
-  }, [currentStep, stepCompleted]);
+  // ─── Digital Comms: Telehealth handler ───────────────────────
+  const handleTelehealthAction = useCallback(
+    (action: string) => {
+      if (stepCompleted) return;
+      if (action === 'toggle_mute' && currentStep?.id === 'dc-step3') {
+        setAutomatedScore(2);
+        setStepCompleted(true);
+      }
+    },
+    [currentStep, stepCompleted],
+  );
 
-  // ─── eADL-5 transport handlers ────────────────────────────────
-  const handleTransportAction = useCallback((action: string) => {
-    if (stepCompleted) return;
-    const sid = currentStep?.id;
-    switch (action) {
-      case 'enter_destination':
-        if (sid === 'eadl5-step2') { setTransportScreen('route'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'select_route':
-        if (sid === 'eadl5-step3') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'request_ride':
-        if (sid === 'eadl5-step4') { setTransportScreen('ride-tracking'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'track_ride':
-        if (sid === 'eadl5-step5') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-    }
-  }, [currentStep, stepCompleted]);
+  // ─── EHR: MyChart handlers ────────────────────────────────────
+  const handleMyChartAction = useCallback(
+    (action: string) => {
+      if (stepCompleted) return;
+      const sid = currentStep?.id;
+      switch (action) {
+        case 'open_result':
+          if (sid === 'ehr-step1') { setAutomatedScore(2); setStepCompleted(true); }
+          break;
+        case 'view_appointment':
+          if (sid === 'ehr-step2') { setAutomatedScore(2); setStepCompleted(true); }
+          break;
+        case 'send_message':
+          if (sid === 'ehr-step3') { setAutomatedScore(2); setStepCompleted(true); }
+          break;
+      }
+    },
+    [currentStep, stepCompleted],
+  );
 
-  // ─── eADL-6 streaming handlers ────────────────────────────────
-  const handleStreamingAction = useCallback((action: string) => {
-    if (stepCompleted) return;
-    const sid = currentStep?.id;
-    switch (action) {
-      case 'search':
-        if (sid === 'eadl6-step2') { setStreamingScreen('search-results'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'play_content':
-        if (sid === 'eadl6-step3') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'control_playback':
-        if (sid === 'eadl6-step4') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'exit':
-        if (sid === 'eadl6-step5') { setPhoneScreen('home'); setAutomatedScore(2); setStepCompleted(true); }
-        break;
-    }
-  }, [currentStep, stepCompleted]);
-
-  // ─── eADL-7 safety handlers ───────────────────────────────────
-  const handleSafetyAction = useCallback((action: string) => {
-    if (stepCompleted) return;
-    const sid = currentStep?.id;
-    switch (action) {
-      case 'view_reminders':
-        if (sid === 'eadl7-step1') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'complete_reminder':
-        if (sid === 'eadl7-step2') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'acknowledge_alert':
-        if (sid === 'eadl7-step3') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'call_emergency':
-        if (sid === 'eadl7-step4') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-      case 'adjust_settings':
-        if (sid === 'eadl7-step5') { setAutomatedScore(2); setStepCompleted(true); }
-        break;
-    }
-  }, [currentStep, stepCompleted]);
+  // ─── Misclick helper ──────────────────────────────────────────
+  const handleMisclick = useCallback(
+    (errorType: ErrorType = 'targeting') => {
+      recordMisclick(errorType);
+    },
+    [recordMisclick],
+  );
 
   // ─── Module overview helpers ───────────────────────────────────
   const getModuleState = (index: number): 'completed' | 'active' | 'locked' => {
@@ -456,55 +263,45 @@ const Assessment: React.FC = () => {
     setShowModuleOverview(false);
   }, [session, startAssessment]);
 
-  const handleMisclick = useCallback((errorType: ErrorType = 'targeting') => {
-    recordMisclick(errorType);
-  }, [recordMisclick]);
+  // ─── Open-ended response ──────────────────────────────────────
+  const handleOpenEndedSubmit = useCallback(
+    (response: string) => {
+      setOpenEndedResponse(response);
+      setShowOpenEnded(false);
+      setShowCongrats(false);
+      setCompletedModuleInfo(null);
+      if (session?.endTime) {
+        navigate('/dashboard');
+      } else {
+        setShowModuleOverview(true);
+      }
+    },
+    [setOpenEndedResponse, session, navigate],
+  );
 
-  // Handle open-ended response
-  const handleOpenEndedSubmit = useCallback((response: string) => {
-    setOpenEndedResponse(response);
-    setShowOpenEnded(false);
-    setShowCongrats(false);
-    setCompletedModuleInfo(null);
-    if (session?.endTime) {
-      navigate('/dashboard');
-    } else {
-      setShowModuleOverview(true);
-    }
-  }, [setOpenEndedResponse, session, navigate]);
-
-  // Toggle difficulty mode
+  // ─── Difficulty / restart ─────────────────────────────────────
   const toggleDifficulty = useCallback(() => {
     setDifficultyMode(simpleMode ? 'complex' : 'simple');
   }, [simpleMode, setDifficultyMode]);
 
-  // Restart current module
   const restartModule = useCallback(() => {
     clearProgress();
-    setPhoneScreen('lock');
-    setPortalScreen('login');
-    setBankingScreen('login');
-    setShoppingScreen('home');
-    setTransportScreen('home');
-    setStreamingScreen('home');
-    setSafetyScreen('reminders');
-    setShowNotification(false);
+    setPhoneScreen('home');
+    setMyChartScreen('results');
     setAutomatedScore(null);
     setStepCompleted(false);
   }, [clearProgress]);
 
-  const handleResume = useCallback(() => {
-    setShowResumePrompt(false);
-  }, []);
-
+  const handleResume = useCallback(() => setShowResumePrompt(false), []);
   const handleStartOver = useCallback(() => {
     setShowResumePrompt(false);
     startAssessment(true, false);
   }, [startAssessment]);
 
-  // Congrats + survey phase uses the same layout but locks the phone
-  const isModuleCompletePhase = (showCongrats || showOpenEnded) && completedModuleInfo;
+  const isModuleCompletePhase =
+    (showCongrats || showOpenEnded) && completedModuleInfo != null;
 
+  // ── Resume prompt ──────────────────────────────────────────────
   if (showResumePrompt) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-subtle p-4">
@@ -514,9 +311,7 @@ const Assessment: React.FC = () => {
             You have an unfinished assessment saved. Would you like to resume where you left off?
           </p>
           <div className="flex flex-col gap-3">
-            <Button size="lg" onClick={handleResume} className="w-full">
-              Resume
-            </Button>
+            <Button size="lg" onClick={handleResume} className="w-full">Resume</Button>
             <Button size="lg" variant="outline" onClick={handleStartOver} className="w-full">
               Start Over
             </Button>
@@ -526,14 +321,15 @@ const Assessment: React.FC = () => {
     );
   }
 
+  // ── Module overview ────────────────────────────────────────────
   if (showModuleOverview) {
     const activeIndex = session ? session.currentModuleIndex : 0;
     const completedCount = activeIndex;
     const isFirst = completedCount === 0;
     const activeModule = eadlModules[activeIndex];
 
-    const estMins = (steps: number) => `~${Math.ceil(steps * 30 / 60)} min`;
-    const totalMins = Math.ceil(eadlModules.reduce((s, m) => s + m.steps.length, 0) * 30 / 60);
+    const estMins = (steps: number) => `~${steps * 2} min`;
+    const totalActiveMins = eadlModules.reduce((s, m) => s + m.steps.length * 2, 0);
 
     return (
       <div className="min-h-screen bg-gradient-subtle">
@@ -548,6 +344,7 @@ const Assessment: React.FC = () => {
                 <h1 className="font-semibold text-foreground">eADL Assessment</h1>
                 <p className="text-sm text-muted-foreground">
                   {completedCount} of {eadlModules.length} modules complete
+                  {' '}· 5 more coming soon
                 </p>
               </div>
             </div>
@@ -555,24 +352,25 @@ const Assessment: React.FC = () => {
         </header>
 
         <main className="container px-4 py-8">
-          {/* Intro text */}
+          {/* Intro */}
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-2">
               {isFirst ? 'Ready to Begin?' : 'Module Complete!'}
             </h2>
             <p className="text-muted-foreground">
               {isFirst
-                ? 'Complete all 7 modules to finish the assessment.'
-                : `You've completed ${completedCount} of ${eadlModules.length} modules. Keep going!`}
+                ? 'Complete both active modules to finish the assessment.'
+                : `You've completed ${completedCount} of ${eadlModules.length} active modules. Keep going!`}
             </p>
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
-              Total estimated time: ~{totalMins} min
+              Active modules: ~{totalActiveMins} min total
             </div>
           </div>
 
-          {/* Module cards */}
+          {/* Module grid */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
+            {/* ── Active / completable modules ── */}
             {eadlModules.map((module, index) => {
               const state = getModuleState(index);
               return (
@@ -584,11 +382,10 @@ const Assessment: React.FC = () => {
                     state === 'completed' && 'bg-muted/50 border-border',
                     state === 'active' &&
                       'bg-card border-primary shadow-md cursor-pointer ring-1 ring-primary/30 hover:shadow-lg',
-                    state === 'locked' && 'bg-card opacity-40 cursor-not-allowed select-none',
+                    state === 'locked' && 'bg-card opacity-50 cursor-not-allowed select-none',
                   )}
                 >
                   <div className="flex items-start gap-4">
-                    {/* Icon */}
                     <div
                       className={cn(
                         'flex h-12 w-12 items-center justify-center rounded-xl flex-shrink-0',
@@ -605,12 +402,10 @@ const Assessment: React.FC = () => {
                         getModuleIcon(module.icon)
                       )}
                     </div>
-
-                    {/* Text */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-medium text-muted-foreground">
-                          eADL {index + 1}
+                          Module {index + 1}
                         </span>
                         {state === 'completed' && (
                           <span className="text-xs font-semibold text-success">Done</span>
@@ -633,7 +428,7 @@ const Assessment: React.FC = () => {
                         </p>
                       )}
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{module.steps.length} steps</span>
+                        <span>{module.steps.length} tasks</span>
                         <span>·</span>
                         <span>{estMins(module.steps.length)}</span>
                       </div>
@@ -642,9 +437,38 @@ const Assessment: React.FC = () => {
                 </div>
               );
             })}
+
+            {/* ── Coming Soon modules ── */}
+            {comingSoonModules.map(mod => (
+              <div
+                key={mod.name}
+                className="rounded-xl border bg-card p-5 select-none cursor-not-allowed"
+                style={{ opacity: 0.3 }}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-2xl flex-shrink-0">
+                    {mod.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {mod.category}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                        Coming Soon
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground">{mod.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {mod.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* CTA button */}
+          {/* CTA */}
           <div className="flex justify-center">
             <Button size="lg" onClick={handleEnterModule} className="gap-2 px-8">
               {isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
@@ -656,27 +480,26 @@ const Assessment: React.FC = () => {
     );
   }
 
+  // ── Loading guard ──────────────────────────────────────────────
   if (!isModuleCompletePhase && (!session || !currentModule || !currentStep)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="text-muted-foreground">Loading assessment...</p>
+          <p className="text-muted-foreground">Loading assessment…</p>
         </div>
       </div>
     );
   }
 
-  // Get target apps for the current module's home screen
-  const targetApps = currentModule ? (moduleTargetApps[moduleId] || []) : [];
-  // Highlight the main app on step 1
-  const homeHighlight = currentStep?.id?.endsWith('-step1') ? moduleMainApp[moduleId] : 
-    currentStep?.id === 'eadl1-step2' ? 'messages' : undefined;
+  const headerTitle = isModuleCompletePhase
+    ? completedModuleInfo!.name
+    : currentModule?.name;
+  const headerSubtitle = isModuleCompletePhase
+    ? 'Module Complete'
+    : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
 
-  // Use completed module info for header during complete phase
-  const headerTitle = isModuleCompletePhase ? completedModuleInfo!.name : currentModule?.name;
-  const headerSubtitle = isModuleCompletePhase ? 'Module Complete' : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
-
+  // ── Active assessment ──────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -711,7 +534,7 @@ const Assessment: React.FC = () => {
         </div>
       </header>
 
-      {/* Progress bar — always visible during active steps */}
+      {/* Progress bar */}
       {!isModuleCompletePhase && currentModule && (
         <div className="border-b bg-card px-4 py-2.5">
           <div className="max-w-2xl mx-auto">
@@ -729,10 +552,10 @@ const Assessment: React.FC = () => {
         </div>
       )}
 
-      {/* Main content — single column, mobile-first */}
+      {/* Main content */}
       <main className="max-w-2xl mx-auto px-4 py-5 space-y-5">
         {isModuleCompletePhase ? (
-          /* ── Module complete: congrats + survey ── */
+          /* ── Module complete: congrats + open-ended ── */
           <div className="space-y-5">
             {showCongrats && (
               <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
@@ -741,19 +564,18 @@ const Assessment: React.FC = () => {
                     <PartyPopper className="h-7 w-7 text-primary" />
                   </div>
                 </div>
-                <h2 className="text-xl font-bold text-foreground mb-2">Task Complete! 🎉</h2>
+                <h2 className="text-xl font-bold text-foreground mb-2">Task Complete!</h2>
                 <p className="text-muted-foreground mb-4">
                   Great work completing{' '}
-                  <span className="font-semibold text-foreground">{completedModuleInfo!.name}</span>.
-                  Please answer the short question below.
+                  <span className="font-semibold text-foreground">
+                    {completedModuleInfo!.name}
+                  </span>
+                  . Please answer the short question below.
                 </p>
                 <Button
                   size="lg"
                   className="w-full"
-                  onClick={() => {
-                    setShowCongrats(false);
-                    setShowOpenEnded(true);
-                  }}
+                  onClick={() => { setShowCongrats(false); setShowOpenEnded(true); }}
                 >
                   Answer Question
                   <ChevronRight className="h-4 w-4 ml-1" />
@@ -771,9 +593,9 @@ const Assessment: React.FC = () => {
             )}
           </div>
         ) : (
-          /* ── Active step: instruction → simulator → rating ── */
+          /* ── Active step: instruction → simulator → scoring ── */
           <>
-            {/* 1. Step instruction */}
+            {/* Step instruction */}
             <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
               <p className="font-medium text-foreground leading-snug">{currentStep!.instruction}</p>
               {simpleMode && (currentStep!.hints ?? []).length > 0 && (
@@ -784,130 +606,75 @@ const Assessment: React.FC = () => {
               )}
             </div>
 
-            {/* 2. Simulator */}
-            {isPhoneModule && (
+            {/* ── Digital Communications simulator (phone) ── */}
+            {isDCModule && (
               <div className="flex justify-center">
                 <PhoneFrame className="w-[320px]">
-                  {phoneScreen === 'lock' && (
-                    <LockScreen
-                      onUnlock={handleUnlock}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                    />
-                  )}
                   {phoneScreen === 'home' && (
                     <HomeScreen
                       onAppTap={handleAppTap}
                       onMisclick={() => handleMisclick('navigation')}
-                      targetApps={targetApps}
+                      targetApps={['messages']}
                       simpleMode={simpleMode}
-                      highlightTarget={homeHighlight}
+                      highlightTarget="messages"
                       showHint={showHints}
                     />
                   )}
-                  {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
+
+                  {(phoneScreen === 'messages' ||
+                    phoneScreen === 'messages-conversation') && (
                     <MessagesApp
                       onBack={() => setPhoneScreen('home')}
                       onContactSelect={handleContactSelect}
                       onSendMessage={handleSendMessage}
                       onMisclick={() => handleMisclick('targeting')}
-                      targetContact="dr-smith"
+                      targetContact="daughter"
                       simpleMode={simpleMode}
                       showHint={showHints}
-                      currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
+                      currentStep={
+                        phoneScreen === 'messages-conversation' ? 'conversation' : 'list'
+                      }
                     />
                   )}
-                  {phoneScreen === 'app-store' && (
-                    <AppStoreScreen
-                      onBack={() => setPhoneScreen('home')}
-                      onDownloadApp={handleDownloadApp}
-                      onMisclick={() => handleMisclick('targeting')}
-                      targetApp="zoom"
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                    />
-                  )}
-                  {phoneScreen === 'banking' && (
-                    <BankingApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleBankingAction}
+
+                  {phoneScreen === 'gmail' && (
+                    <GmailApp
+                      onAction={handleGmailAction}
                       onMisclick={() => handleMisclick('targeting')}
                       simpleMode={simpleMode}
                       showHint={showHints}
-                      screen={bankingScreen}
                     />
                   )}
-                  {phoneScreen === 'shopping' && (
-                    <ShoppingApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleShoppingAction}
+
+                  {phoneScreen === 'telehealth' && (
+                    <TelehealthCall
+                      onAction={handleTelehealthAction}
                       onMisclick={() => handleMisclick('targeting')}
                       simpleMode={simpleMode}
                       showHint={showHints}
-                      screen={shoppingScreen}
-                    />
-                  )}
-                  {phoneScreen === 'transport' && (
-                    <TransportApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleTransportAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={transportScreen}
-                    />
-                  )}
-                  {phoneScreen === 'streaming' && (
-                    <StreamingApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleStreamingAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={streamingScreen}
-                    />
-                  )}
-                  {phoneScreen === 'homesafety' && (
-                    <HomeSafetyApp
-                      onBack={() => setPhoneScreen('home')}
-                      onAction={handleSafetyAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={showHints}
-                      screen={safetyScreen}
-                    />
-                  )}
-                  {showNotification && currentStep?.id === 'eadl1-step5' && (
-                    <NotificationBanner
-                      appName="Messages"
-                      appIcon="💬"
-                      title="New Message"
-                      message="Dr. Smith: Great, I'll see you tomorrow!"
-                      onTap={handleNotificationTap}
-                      onDismiss={() => handleMisclick('attention')}
-                      simpleMode={simpleMode}
                     />
                   )}
                 </PhoneFrame>
               </div>
             )}
 
-            {isPortalModule && (
-              <div className="rounded-xl border bg-white shadow-xl overflow-hidden">
-                <div className="h-[500px]">
-                  <PatientPortal
-                    onAction={handlePortalAction}
+            {/* ── EHR simulator (MyChart portal) ── */}
+            {isEHRModule && (
+              <div className="rounded-xl border shadow-xl overflow-hidden">
+                <div className="h-[540px]">
+                  <MyChartPortal
+                    onAction={handleMyChartAction}
                     onMisclick={() => handleMisclick('navigation')}
                     currentStep={currentStep!.id}
                     simpleMode={simpleMode}
                     showHint={showHints}
-                    screen={portalScreen}
+                    screen={myChartScreen}
                   />
                 </div>
               </div>
             )}
 
-            {/* 3. Rating — tap = immediate advance */}
+            {/* Scoring panel */}
             <ScoringPanel
               stepInstruction={currentStep!.instruction}
               automatedScore={automatedScore}

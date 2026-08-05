@@ -12,11 +12,11 @@ interface Contact {
 }
 
 const contacts: Contact[] = [
+  { id: 'daughter', name: 'Emma (Daughter)', lastMessage: 'Looking forward to Sunday!', time: '9:15 AM', unread: false },
   { id: 'dr-smith', name: 'Dr. Smith', lastMessage: 'See you at 2pm tomorrow!', time: '10:30 AM', unread: true },
   { id: 'pharmacy', name: 'CVS Pharmacy', lastMessage: 'Your prescription is ready', time: 'Yesterday' },
   { id: 'family', name: 'Family Group', lastMessage: 'Mom: Don\'t forget dinner Sunday', time: 'Yesterday' },
   { id: 'bank', name: 'SafeBank Alerts', lastMessage: 'Your balance is $1,234.56', time: 'Mon' },
-  { id: 'friend', name: 'John D.', lastMessage: 'How are you feeling today?', time: 'Mon' },
 ];
 
 interface MessagesAppProps {
@@ -87,23 +87,45 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="flex justify-start">
-            <div className="max-w-[75%] rounded-2xl rounded-bl-md bg-gray-200 px-4 py-2">
-              <p className={cn("text-gray-900", simpleMode ? "text-base" : "text-sm")}>
-                Hello! Just confirming our appointment for tomorrow.
-              </p>
-              <span className="mt-1 block text-xs text-gray-500">10:28 AM</span>
-            </div>
-          </div>
-          
-          <div className="flex justify-start">
-            <div className="max-w-[75%] rounded-2xl rounded-bl-md bg-gray-200 px-4 py-2">
-              <p className={cn("text-gray-900", simpleMode ? "text-base" : "text-sm")}>
-                See you at 2pm tomorrow!
-              </p>
-              <span className="mt-1 block text-xs text-gray-500">10:30 AM</span>
-            </div>
-          </div>
+          {selectedContact?.id === 'daughter' ? (
+            <>
+              <div className="flex justify-end">
+                <div className="max-w-[75%] rounded-2xl rounded-br-md bg-blue-500 px-4 py-2">
+                  <p className={cn("text-white", simpleMode ? "text-base" : "text-sm")}>
+                    Hi Emma! How are you?
+                  </p>
+                  <span className="mt-1 block text-right text-xs text-blue-200">9:10 AM</span>
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="max-w-[75%] rounded-2xl rounded-bl-md bg-gray-200 px-4 py-2">
+                  <p className={cn("text-gray-900", simpleMode ? "text-base" : "text-sm")}>
+                    I'm good! Looking forward to Sunday dinner.
+                  </p>
+                  <span className="mt-1 block text-xs text-gray-500">9:15 AM</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-start">
+                <div className="max-w-[75%] rounded-2xl rounded-bl-md bg-gray-200 px-4 py-2">
+                  <p className={cn("text-gray-900", simpleMode ? "text-base" : "text-sm")}>
+                    Hello! Just confirming our appointment for tomorrow.
+                  </p>
+                  <span className="mt-1 block text-xs text-gray-500">10:28 AM</span>
+                </div>
+              </div>
+              <div className="flex justify-start">
+                <div className="max-w-[75%] rounded-2xl rounded-bl-md bg-gray-200 px-4 py-2">
+                  <p className={cn("text-gray-900", simpleMode ? "text-base" : "text-sm")}>
+                    See you at 2pm tomorrow!
+                  </p>
+                  <span className="mt-1 block text-xs text-gray-500">10:30 AM</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Input Area */}
@@ -128,7 +150,11 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
                 type="text"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                placeholder={simpleMode ? "Type: Confirming my appointment" : "Message"}
+                placeholder={simpleMode
+                    ? selectedContact?.id === 'daughter'
+                      ? 'Type: My appointment is July 18 at 2:30 PM'
+                      : 'Type: Confirming my appointment'
+                    : 'Message'}
                 className={cn(
                   "w-full rounded-full border bg-white px-4 py-3 outline-none focus:border-blue-500",
                   simpleMode ? "text-base" : "text-sm"
@@ -249,7 +275,9 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
       {simpleMode && (
         <div className="border-t bg-blue-50 p-3 text-center">
           <p className="text-sm text-blue-700">
-            Tap on "Dr. Smith" to open the conversation
+            {targetContact === 'daughter'
+              ? 'Tap on "Emma (Daughter)" to open the conversation'
+              : 'Tap on "Dr. Smith" to open the conversation'}
           </p>
         </div>
       )}
