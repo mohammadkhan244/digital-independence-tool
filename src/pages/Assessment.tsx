@@ -95,6 +95,7 @@ const Assessment: React.FC = () => {
   const [completedModuleInfo, setCompletedModuleInfo] = useState<{
     name: string;
     question: string;
+    moduleId: string;
   } | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
 
@@ -149,6 +150,7 @@ const Assessment: React.FC = () => {
         setCompletedModuleInfo({
           name: currentModule.name,
           question: currentModule.openEndedQuestion,
+          moduleId: currentModule.id,
         });
       }
 
@@ -284,7 +286,9 @@ const Assessment: React.FC = () => {
   // ─── Open-ended response ──────────────────────────────────────
   const handleOpenEndedSubmit = useCallback(
     (response: string) => {
-      setOpenEndedResponse(response);
+      if (completedModuleInfo) {
+        setOpenEndedResponse(completedModuleInfo.moduleId, response);
+      }
       setShowOpenEnded(false);
       setShowCongrats(false);
       setCompletedModuleInfo(null);
@@ -294,7 +298,7 @@ const Assessment: React.FC = () => {
         setShowModuleOverview(true);
       }
     },
-    [setOpenEndedResponse, session, navigate],
+    [setOpenEndedResponse, completedModuleInfo, session, navigate],
   );
 
   // ─── Difficulty / restart ─────────────────────────────────────
@@ -342,8 +346,9 @@ const Assessment: React.FC = () => {
   // ── Module overview ────────────────────────────────────────────
   if (showModuleOverview) {
     const activeIndex = session ? session.currentModuleIndex : 0;
-    const completedCount = activeIndex;
+    const completedCount = eadlModules.filter(m => isModuleCompleted(m.id)).length;
     const isFirst = completedCount === 0;
+    const allDone = completedCount === eadlModules.length;
     const activeModule = eadlModules[activeIndex];
 
     const estMins = (steps: number) => `~${steps * 2} min`;
@@ -362,7 +367,7 @@ const Assessment: React.FC = () => {
                 <h1 className="font-semibold text-foreground">eADL Assessment</h1>
                 <p className="text-sm text-muted-foreground">
                   {completedCount} of {eadlModules.length} modules complete
-                  {' '}· 5 more coming soon
+                  {allDone ? '' : ' · 5 more coming soon'}
                 </p>
               </div>
             </div>
@@ -492,8 +497,16 @@ const Assessment: React.FC = () => {
 
           {/* CTA */}
           <div className="flex justify-center">
-            <Button size="lg" onClick={handleEnterModule} className="gap-2 px-8">
-              {isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
+            <Button
+              size="lg"
+              onClick={allDone ? () => navigate('/dashboard') : handleEnterModule}
+              className="gap-2 px-8"
+            >
+              {allDone
+                ? 'View Results'
+                : isFirst
+                ? 'Begin Assessment'
+                : `Continue — ${activeModule?.name}`}
               <ArrowRight className="h-5 w-5" />
             </Button>
           </div>

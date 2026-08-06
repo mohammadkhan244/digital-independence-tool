@@ -46,3 +46,31 @@ export function clearProgress(): void {
 export function hasSavedProgress(): boolean {
   return loadSavedProgress() !== null;
 }
+
+// ── Completed-session results (separate key so clearProgress never touches it) ──
+
+const RESULTS_KEY = 'eadl_assessment_results';
+
+export function saveResults(session: AssessmentSession): void {
+  try {
+    localStorage.setItem(
+      RESULTS_KEY,
+      JSON.stringify({ session, savedAt: new Date().toISOString() }),
+    );
+  } catch {}
+}
+
+export function loadResults(): AssessmentSession | null {
+  try {
+    const raw = localStorage.getItem(RESULTS_KEY);
+    if (!raw) return null;
+    const { session }: { session: AssessmentSession; savedAt: string } = JSON.parse(raw);
+    return session ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearResults(): void {
+  localStorage.removeItem(RESULTS_KEY);
+}

@@ -14,6 +14,9 @@ import {
   saveProgress,
   clearProgress,
   hasSavedProgress,
+  saveResults,
+  loadResults,
+  clearResults,
 } from './useAssessmentPersistence';
 
 const ASSESSMENT_VERSION = '1.0.0';
@@ -49,6 +52,7 @@ export const useAssessment = () => {
   // Initialize a new assessment session
   const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0) => {
     clearProgress();
+    clearResults();
     const newSession: AssessmentSession = {
       id: generateId(),
       participantId: `P-${Date.now()}`,
@@ -248,6 +252,7 @@ export const useAssessment = () => {
 
     if (isLastStep && isLastModule) {
       clearProgress();
+      saveResults(updatedSession); // persist for dashboard; open-ended response added later
     } else {
       saveProgress(updatedSession);
     }
@@ -277,23 +282,27 @@ export const useAssessment = () => {
     completeStep(0);
   }, [session, completeStep]);
 
-  // Set open-ended response for current module
-  const setOpenEndedResponse = useCallback((response: string) => {
+  // Set open-ended response for a specific module (pass the moduleId explicitly so
+  // non-sequential completion doesn't accidentally write to the wrong module)
+  const setOpenEndedResponse = useCallback((moduleId: string, response: string) => {
     if (!session) return;
-    
-    const currentModule = eadlModules[session.currentModuleIndex];
-    
+
     setSession(prev => {
       if (!prev) return null;
-      
-      const updatedResults = prev.moduleResults.map(m => 
-        m.moduleId === currentModule.id
+
+      const updatedResults = prev.moduleResults.map(m =>
+        m.moduleId === moduleId
           ? { ...m, openEndedResponse: response }
           : m
       );
-      
+
       const updated = { ...prev, moduleResults: updatedResults };
-      saveProgress(updated);
+      // Completed sessions (endTime set) live in the results key, not the progress key
+      if (prev.endTime) {
+        saveResults(updated);
+      } else {
+        saveProgress(updated);
+      }
       return updated;
     });
   }, [session]);
@@ -451,13 +460,17 @@ export const useAssessment = () => {
     return JSON.stringify(aoiMap, null, 2);
   }, []);
 
-  // Load session from storage on mount
+  // Load session from storage on mount.
+  // In-progress sessions come from the progress key; completed sessions (for
+  // the dashboard) fall back to the results key.
   useEffect(() => {
-    const saved = loadSavedProgress();
+    const saved = loadSavedProgress() ?? loadResults();
     if (saved) {
       setSession(saved);
-      setIsRunning(true);
-      setCurrentStepStartTime(Date.now());
+      if (!saved.endTime) {
+        setIsRunning(true);
+        setCurrentStepStartTime(Date.now());
+      }
     }
   }, []);
 
