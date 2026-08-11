@@ -24,7 +24,7 @@ import {
   Clock,
   Lock,
 } from 'lucide-react';
-import { DifficultyMode, Score, ErrorType } from '@/types/assessment';
+import { DifficultyMode, Score, ErrorType, CueLevel } from '@/types/assessment';
 
 type PhoneScreen =
   | 'home'
@@ -143,7 +143,7 @@ const Assessment: React.FC = () => {
 
   // ─── Step completion ──────────────────────────────────────────
   const handleStepComplete = useCallback(
-    (score: Score) => {
+    (score: Score, cueLevel?: CueLevel, cueLabel?: string) => {
       const isLastStep =
         currentModule != null && stepIndex >= currentModule.steps.length - 1;
       if (isLastStep && currentModule) {
@@ -156,7 +156,7 @@ const Assessment: React.FC = () => {
 
       setAutomatedScore(null);
       setStepCompleted(false);
-      completeStep(score);
+      completeStep(score, undefined, cueLevel, cueLabel);
 
       if (isLastStep) {
         setShowCongrats(true);

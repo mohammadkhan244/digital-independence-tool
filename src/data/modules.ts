@@ -9,6 +9,7 @@ export const eadlModules: ModuleDefinition[] = [
     steps: [
       {
         id: 'dc-step1',
+        shortLabel: 'Send text message',
         instruction: 'Text your daughter to let her know your appointment time.',
         targetElement: 'messages-daughter',
         expectedAction: 'send_sms',
@@ -17,6 +18,7 @@ export const eadlModules: ModuleDefinition[] = [
       },
       {
         id: 'dc-step2',
+        shortLabel: 'Reply to email',
         instruction: 'Find and reply to the unread email from your doctor\'s office.',
         targetElement: 'email-reply',
         expectedAction: 'send_email',
@@ -25,6 +27,7 @@ export const eadlModules: ModuleDefinition[] = [
       },
       {
         id: 'dc-step3',
+        shortLabel: 'Join telehealth call',
         instruction: 'Join your telehealth visit and turn off your microphone.',
         targetElement: 'mute-button',
         expectedAction: 'toggle_mute',
@@ -54,6 +57,7 @@ export const eadlModules: ModuleDefinition[] = [
     steps: [
       {
         id: 'ehr-step1',
+        shortLabel: 'View lab result',
         instruction: 'Find and open your most recent lab result.',
         targetElement: 'lab-result-recent',
         expectedAction: 'open_result',
@@ -62,6 +66,7 @@ export const eadlModules: ModuleDefinition[] = [
       },
       {
         id: 'ehr-step2',
+        shortLabel: 'Check appointment',
         instruction: 'Find your upcoming appointment details.',
         targetElement: 'appointment-card',
         expectedAction: 'view_appointment',
@@ -70,6 +75,7 @@ export const eadlModules: ModuleDefinition[] = [
       },
       {
         id: 'ehr-step3',
+        shortLabel: 'Message doctor',
         instruction: 'Send a new message to your doctor asking about your medication.',
         targetElement: 'compose-message',
         expectedAction: 'send_message',

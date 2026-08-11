@@ -1,60 +1,82 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Score } from '@/types/assessment';
+import { Score, CueLevel } from '@/types/assessment';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, HelpCircle, XCircle, MinusCircle, Edit2 } from 'lucide-react';
+import {
+  CheckCircle2,
+  HelpCircle,
+  Eye,
+  XCircle,
+  Edit2,
+} from 'lucide-react';
 
 interface ScoringPanelProps {
   stepInstruction: string;
   automatedScore: Score | null;
-  onScoreSubmit: (score: Score) => void;
+  onScoreSubmit: (score: Score, cueLevel?: CueLevel, cueLabel?: string) => void;
   onSkip?: () => void;
   allowOverride?: boolean;
   hints?: string[];
   simpleMode?: boolean;
 }
 
-const scoreOptions: {
-  value: Score;
-  label: string;
+// 0–3 cue hierarchy — each maps to a legacy Score for backward compat
+const cueOptions: {
+  cueLevel: CueLevel;
+  cueLabel: string;
   description: string;
+  score: Score;
   icon: React.ElementType;
   colorClass: string;
   bgClass: string;
 }[] = [
   {
-    value: 2,
-    label: 'Independent',
-    description: 'Completed without assistance',
+    cueLevel: 3,
+    cueLabel: 'Independent',
+    description: 'Completed without any assistance',
+    score: 2,
     icon: CheckCircle2,
     colorClass: 'border-success text-success hover:bg-success/10',
     bgClass: 'text-success',
   },
   {
-    value: 1,
-    label: 'With Help',
-    description: 'Needed verbal or physical help',
+    cueLevel: 2,
+    cueLabel: 'Verbal/Visual Cue',
+    description: 'Completed after a hint or prompt',
+    score: 1,
     icon: HelpCircle,
+    colorClass: 'border-chart-1 text-chart-1 hover:bg-chart-1/10',
+    bgClass: 'text-chart-1',
+  },
+  {
+    cueLevel: 1,
+    cueLabel: 'Demonstration',
+    description: 'Completed after being shown how',
+    score: 1,
+    icon: Eye,
     colorClass: 'border-warning text-warning hover:bg-warning/10',
     bgClass: 'text-warning',
   },
   {
-    value: 0,
-    label: 'Unable',
-    description: 'Could not complete even with help',
+    cueLevel: 0,
+    cueLabel: 'Unable',
+    description: 'Could not complete, incorrect, or abandoned',
+    score: 0,
     icon: XCircle,
     colorClass: 'border-destructive text-destructive hover:bg-destructive/10',
     bgClass: 'text-destructive',
   },
-  {
-    value: 'N/A',
-    label: 'N/A',
-    description: 'Does not apply',
-    icon: MinusCircle,
-    colorClass: 'border-muted-foreground text-muted-foreground hover:bg-muted',
-    bgClass: 'text-muted-foreground',
-  },
 ];
+
+// Infer the default cue level from an auto-detected Score
+const inferCueFromScore = (
+  score: Score,
+): { level: CueLevel; label: string } | null => {
+  if (score === 2) return { level: 3, label: 'Independent' };
+  if (score === 1) return { level: 2, label: 'Verbal/Visual Cue' };
+  if (score === 0) return { level: 0, label: 'Unable' };
+  return null; // N/A
+};
 
 export const ScoringPanel: React.FC<ScoringPanelProps> = ({
   automatedScore,
@@ -64,22 +86,36 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
 }) => {
   const [showOverride, setShowOverride] = useState(false);
 
-  // Automated score detected — show accept + optional override
+  // Auto-detected score — show accept + optional override
   if (automatedScore !== null && !showOverride) {
-    const detected = scoreOptions.find((o) => o.value === automatedScore);
+    const detectedCue = inferCueFromScore(automatedScore);
+
     return (
       <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
         <div className="rounded-lg bg-muted/50 border px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground mb-0.5">Auto-detected score</p>
-            <p className={cn('font-semibold', detected?.bgClass)}>
-              {detected?.label ?? String(automatedScore)}
-            </p>
+            <p className="text-xs text-muted-foreground mb-1">Auto-detected</p>
+            <div className="flex items-center gap-2">
+              {detectedCue && (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success text-success-foreground text-xs font-bold flex-shrink-0">
+                  {detectedCue.level}
+                </span>
+              )}
+              <p className={cn('font-semibold', detectedCue ? 'text-success' : 'text-muted-foreground')}>
+                {detectedCue?.label ?? (automatedScore === 'N/A' ? 'N/A' : String(automatedScore))}
+              </p>
+            </div>
           </div>
-          {detected && <detected.icon className={cn('h-6 w-6', detected.bgClass)} />}
+          <CheckCircle2 className="h-6 w-6 text-success" />
         </div>
 
-        <Button onClick={() => onScoreSubmit(automatedScore)} className="w-full" size="lg">
+        <Button
+          onClick={() =>
+            onScoreSubmit(automatedScore, detectedCue?.level, detectedCue?.label)
+          }
+          className="w-full"
+          size="lg"
+        >
           Accept &amp; Continue
         </Button>
 
@@ -98,12 +134,12 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
     );
   }
 
-  // Manual scoring or override — tap a button = immediate advance
+  // Manual scoring or override — 4 cue-level cards
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-foreground">
-          {showOverride ? 'Select the correct score:' : 'How did the patient do?'}
+          {showOverride ? 'Select the correct cue level:' : 'How did the patient do?'}
         </p>
         {showOverride && (
           <button
@@ -116,19 +152,24 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {scoreOptions.map((option) => (
+        {cueOptions.map((option) => (
           <button
-            key={String(option.value)}
-            onClick={() => onScoreSubmit(option.value)}
+            key={option.cueLevel}
+            onClick={() => onScoreSubmit(option.score, option.cueLevel, option.cueLabel)}
             className={cn(
-              'flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all touch-target active:scale-95',
+              'flex flex-col items-start gap-1.5 rounded-lg border-2 p-4 transition-all touch-target active:scale-95 text-left',
               option.colorClass,
             )}
           >
-            <option.icon className="h-7 w-7" />
-            <span className="font-semibold text-sm">{option.label}</span>
+            <div className="flex items-center justify-between w-full">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-current/20 text-sm font-bold flex-shrink-0">
+                {option.cueLevel}
+              </span>
+              <option.icon className="h-5 w-5 opacity-70" />
+            </div>
+            <span className="font-semibold text-sm leading-tight">{option.cueLabel}</span>
             {!simpleMode && (
-              <span className="text-xs opacity-75 text-center leading-tight">
+              <span className="text-xs opacity-70 leading-tight">
                 {option.description}
               </span>
             )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { PerformanceAnalytics, ErrorType } from '@/types/assessment';
+import { PerformanceAnalytics, ErrorType, CueLevel } from '@/types/assessment';
 import {
   BarChart,
   Bar,
@@ -38,6 +38,44 @@ const ERROR_LABELS: Record<ErrorType, string> = {
   sequencing: 'Sequencing',
   attention: 'Attention',
   abandonment: 'Abandonment',
+};
+
+// Plain-language summary of cue dependence for a module
+const getCueSummary = (
+  cueBreakdown: Array<{
+    cueLevel: CueLevel | null;
+    cueLabel: string | null;
+    stepLabel: string;
+    completed: boolean;
+  }>,
+): string | null => {
+  const withData = cueBreakdown.filter(s => s.cueLevel !== null);
+  if (withData.length === 0) return null;
+
+  const unableTasks = withData.filter(s => s.cueLevel === 0);
+  const demoTasks = withData.filter(s => s.cueLevel === 1);
+  const allIndependent = withData.every(s => s.cueLevel === 3);
+
+  if (unableTasks.length > 0) {
+    const names = unableTasks.map(s => s.stepLabel).join('; ');
+    return `Priority for training: ${names}`;
+  }
+  if (demoTasks.length > 0) {
+    const n = demoTasks.length;
+    return `Required demonstration on ${n} task${n > 1 ? 's' : ''}`;
+  }
+  if (allIndependent) {
+    return 'Completed all tasks independently';
+  }
+  return 'Completed most tasks with minimal cues';
+};
+
+// Color class per cue level for the breakdown badge
+const cueLevelClass = (level: CueLevel): string => {
+  if (level === 3) return 'bg-success/10 text-success';
+  if (level === 2) return 'bg-chart-1/10 text-chart-1';
+  if (level === 1) return 'bg-warning/10 text-warning';
+  return 'bg-destructive/10 text-destructive';
 };
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
@@ -250,6 +288,86 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Cue Level Breakdown — one sub-section per module, only shown when cue data exists */}
+      {analytics.moduleScores.some(m =>
+        m.cueBreakdown.some(s => s.cueLevel !== null),
+      ) && (
+        <div className="analytics-card print-no-break">
+          <h3 className="font-semibold text-foreground mb-5">Cue Level Breakdown</h3>
+          <div className="space-y-7">
+            {analytics.moduleScores.map(module => {
+              const hasCueData = module.cueBreakdown.some(s => s.cueLevel !== null);
+              if (!hasCueData) return null;
+
+              const summary = getCueSummary(module.cueBreakdown);
+
+              return (
+                <div key={module.moduleId}>
+                  {/* Module name + summary label */}
+                  <h4 className="font-medium text-foreground mb-1">{module.moduleName}</h4>
+                  {summary && (
+                    <p className="text-sm text-muted-foreground mb-3">{summary}</p>
+                  )}
+
+                  {/* Per-task breakdown table */}
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50 border-b">
+                          <th className="text-left p-3 font-medium">Task</th>
+                          <th className="text-center p-3 font-medium">Outcome</th>
+                          <th className="text-center p-3 font-medium">Cue Level</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {module.cueBreakdown.map(step => (
+                          <tr key={step.stepId} className="border-b last:border-0">
+                            <td className="p-3 text-muted-foreground">
+                              {step.stepLabel}
+                            </td>
+                            <td className="p-3 text-center">
+                              {step.cueLevel !== null ? (
+                                <span
+                                  className={cn(
+                                    'font-medium',
+                                    step.completed
+                                      ? 'text-success'
+                                      : 'text-destructive',
+                                  )}
+                                >
+                                  {step.completed ? 'Completed' : 'Not completed'}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {step.cueLevel !== null ? (
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    cueLevelClass(step.cueLevel),
+                                  )}
+                                >
+                                  <span className="font-bold">{step.cueLevel}</span>
+                                  <span>{step.cueLabel}</span>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

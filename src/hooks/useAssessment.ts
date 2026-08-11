@@ -4,6 +4,7 @@ import {
   ModuleResult,
   StepResult,
   Score,
+  CueLevel,
   ErrorType,
   DifficultyMode,
   EyeTrackingEvent,
@@ -110,14 +111,14 @@ export const useAssessment = () => {
   }, []);
 
   // Complete the current step
-  const completeStep = useCallback((automatedScore: Score, manualOverride?: Score) => {
+  const completeStep = useCallback((automatedScore: Score, manualOverride?: Score, cueLevel?: CueLevel, cueLabel?: string) => {
     if (!session || !currentStepStartTime) return;
 
     const currentModule = eadlModules[session.currentModuleIndex];
     const currentStep = currentModule.steps[session.currentStepIndex];
-    
+
     const timeToCompletion = Date.now() - currentStepStartTime;
-    const timeToFirstInteraction = firstInteractionRecorded 
+    const timeToFirstInteraction = firstInteractionRecorded
       ? Math.min(timeToCompletion, 5000) // Cap at 5 seconds for demo
       : null;
 
@@ -133,6 +134,8 @@ export const useAssessment = () => {
       abandoned: false,
       errors: [...stepErrors.current],
       timestamp: Date.now(),
+      cueLevel,
+      cueLabel,
     };
 
     // Update or create module result
@@ -274,12 +277,12 @@ export const useAssessment = () => {
     return updatedSession;
   }, [session, currentStepStartTime, firstInteractionRecorded]);
 
-  // Abandon current step (timeout)
+  // Abandon current step (timeout) — records as Unable (cue level 0)
   const abandonStep = useCallback(() => {
     if (!session) return;
-    
+
     stepErrors.current.push('abandonment');
-    completeStep(0);
+    completeStep(0, undefined, 0, 'Unable');
   }, [session, completeStep]);
 
   // Set open-ended response for a specific module (pass the moduleId explicitly so
@@ -373,14 +376,27 @@ export const useAssessment = () => {
         }
       });
 
+      const cueBreakdown = result.stepResults.map(step => {
+        const stepDef = moduleDef?.steps.find(s => s.id === step.stepId);
+        const cl = step.cueLevel ?? null;
+        return {
+          stepId: step.stepId,
+          stepLabel: stepDef?.shortLabel ?? stepDef?.instruction ?? step.stepId,
+          cueLevel: cl,
+          cueLabel: step.cueLabel ?? null,
+          completed: cl !== null ? cl > 0 : step.score !== 0,
+        };
+      });
+
       moduleScores.push({
         moduleId: result.moduleId,
         moduleName: moduleDef?.name || result.moduleId,
         score: result.subtotalScore,
         maxScore: result.maxPossibleScore,
-        percentage: result.maxPossibleScore > 0 
-          ? (result.subtotalScore / result.maxPossibleScore) * 100 
+        percentage: result.maxPossibleScore > 0
+          ? (result.subtotalScore / result.maxPossibleScore) * 100
           : 0,
+        cueBreakdown,
       });
     });
 

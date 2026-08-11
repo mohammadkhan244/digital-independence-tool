@@ -2,7 +2,10 @@
 
 export type Score = 0 | 1 | 2 | 'N/A';
 
-export type ErrorType = 
+// 0-3 cue hierarchy for observer-rated step completion
+export type CueLevel = 0 | 1 | 2 | 3;
+
+export type ErrorType =
   | 'navigation'      // Wrong app opened
   | 'targeting'       // Wrong field/button pressed
   | 'sequencing'      // Steps out of order
@@ -13,6 +16,7 @@ export type DifficultyMode = 'simple' | 'complex';
 
 export interface TaskStep {
   id: string;
+  shortLabel?: string;        // brief display name for dashboard tables
   instruction: string;
   targetElement?: string;
   expectedAction: string;
@@ -32,6 +36,9 @@ export interface StepResult {
   abandoned: boolean;
   errors: ErrorType[];
   timestamp: number;
+  // Cue tracking — undefined for sessions recorded before this feature
+  cueLevel?: CueLevel;
+  cueLabel?: string;
 }
 
 export interface ModuleDefinition {
@@ -99,6 +106,13 @@ export interface PerformanceAnalytics {
     score: number;
     maxScore: number;
     percentage: number;
+    cueBreakdown: Array<{
+      stepId: string;
+      stepLabel: string;
+      cueLevel: CueLevel | null;
+      cueLabel: string | null;
+      completed: boolean;
+    }>;
   }>;
 }
 
