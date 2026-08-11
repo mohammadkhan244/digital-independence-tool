@@ -48,7 +48,7 @@ export const eadlModules: ModuleDefinition[] = [
   },
   {
     id: 'ehr',
-    name: 'EHR (Electronic Health Records)',
+    name: 'Patient Portal',
     description: 'Navigate a MyChart patient portal to view lab results, check appointments, and message your doctor.',
     icon: 'Heart',
     steps: [

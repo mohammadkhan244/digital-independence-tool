@@ -266,6 +266,37 @@
   }
 }
 
+@media print {
+  /* Hide navigation and action buttons */
+  header,
+  nav,
+  button:not(.print-show) {
+    display: none !important;
+  }
+
+  /* Remove sticky positioning */
+  .sticky {
+    position: static !important;
+  }
+
+  /* Keep each card/section intact — don't split across pages */
+  .analytics-card,
+  .print-no-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure backgrounds print */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    background: white;
+  }
+}
+
 @layer utilities {
   /* Smooth page transitions */
   .page-transition {

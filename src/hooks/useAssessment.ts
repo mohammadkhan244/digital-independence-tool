@@ -362,17 +362,15 @@ export const useAssessment = () => {
         totalMisclicks += step.misclicks;
         totalBacktracks += step.backtracks;
         if (step.abandoned) abandonedSteps++;
-        
+
+        // step.errors is the authoritative source; errorsByType is derived from the
+        // same data so we do NOT also iterate result.errorsByType (avoids double-count)
         step.errors.forEach(e => errorProfile[e]++);
-        
+
         if (step.score !== 'N/A') {
           compositeScore += step.score as number;
           maxPossibleScore += 2;
         }
-      });
-
-      Object.entries(result.errorsByType).forEach(([type, count]) => {
-        errorProfile[type as ErrorType] += count;
       });
 
       moduleScores.push({
