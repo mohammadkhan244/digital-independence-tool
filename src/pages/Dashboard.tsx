@@ -5,19 +5,28 @@ import { useAssessment } from '@/hooks/useAssessment';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
 import { eadlModules } from '@/data/modules';
 import { Button } from '@/components/ui/button';
-import { 
-  Download, 
-  FileText, 
-  FileSpreadsheet, 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  FileSpreadsheet,
   ChevronLeft,
   Eye,
   Printer,
-  Share2,
+  RotateCcw,
 } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { session, getAnalytics, exportCSV, exportAOIMap } = useAssessment();
+  const { session, getAnalytics, exportCSV, exportAOIMap, resetAssessment } = useAssessment();
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf' | 'aoi' | null>(null);
 
   const analytics = getAnalytics();
@@ -78,7 +87,7 @@ const Dashboard: React.FC = () => {
               <FileSpreadsheet className="h-4 w-4 mr-1" />
               CSV
             </Button>
-            
+
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-1" />
               Print
@@ -90,6 +99,35 @@ const Dashboard: React.FC = () => {
                 AOI Map
               </Button>
             )}
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Retake
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Retake Assessment</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will clear your current results. Are you sure? This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      resetAssessment();
+                      navigate('/assessment');
+                    }}
+                  >
+                    Yes, clear and retake
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </header>

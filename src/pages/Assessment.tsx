@@ -13,6 +13,17 @@ import { ScoringPanel } from '@/components/assessment/ScoringPanel';
 import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   ChevronLeft,
   ChevronRight,
   Sliders,
@@ -22,7 +33,6 @@ import {
   ArrowRight,
   AlertTriangle,
   Clock,
-  Lock,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType, CueLevel } from '@/types/assessment';
 
@@ -76,6 +86,7 @@ const Assessment: React.FC = () => {
     isRunning,
     savedProgressExists,
     clearProgress,
+    resetAssessment,
     startAssessment,
     completeStep,
     recordMisclick,
@@ -496,7 +507,7 @@ const Assessment: React.FC = () => {
           </div>
 
           {/* CTA */}
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-3">
             <Button
               size="lg"
               onClick={allDone ? () => navigate('/dashboard') : handleEnterModule}
@@ -509,6 +520,35 @@ const Assessment: React.FC = () => {
                 : `Continue — ${activeModule?.name}`}
               <ArrowRight className="h-5 w-5" />
             </Button>
+
+            {/* Start Over — shown once at least one module has been attempted */}
+            {completedCount > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Start Over
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Start Over</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will clear your current results. Are you sure? This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => resetAssessment()}
+                    >
+                      Yes, start over
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </main>
       </div>

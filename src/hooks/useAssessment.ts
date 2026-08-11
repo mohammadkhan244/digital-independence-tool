@@ -41,7 +41,9 @@ const createEmptyStepResult = (stepId: string): StepResult => ({
 export const useAssessment = () => {
   const [session, setSession] = useState<AssessmentSession | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [savedProgressExists] = useState(() => hasSavedProgress());
+  // Expose setter so resetAssessment can prevent the resume-prompt useEffect
+  // from re-firing after a deliberate clear (vs. an accidental exit)
+  const [savedProgressExists, setSavedProgressExists] = useState(() => hasSavedProgress());
   const [currentStepStartTime, setCurrentStepStartTime] = useState<number | null>(null);
   const [firstInteractionRecorded, setFirstInteractionRecorded] = useState(false);
   
@@ -434,6 +436,21 @@ export const useAssessment = () => {
     stepErrors.current = [];
   }, []);
 
+  // Reset all assessment state and clear both storage keys — used for "Retake"
+  const resetAssessment = useCallback(() => {
+    clearProgress();
+    clearResults();
+    setSession(null);
+    setIsRunning(false);
+    setCurrentStepStartTime(null);
+    setFirstInteractionRecorded(false);
+    setSavedProgressExists(false);
+    stepMisclicks.current = 0;
+    stepBacktracks.current = 0;
+    stepErrors.current = [];
+    eyeTrackingEvents.current = [];
+  }, []);
+
   // Export data as CSV
   const exportCSV = useCallback(() => {
     if (!session) return '';
@@ -493,6 +510,7 @@ export const useAssessment = () => {
     isRunning,
     savedProgressExists,
     clearProgress,
+    resetAssessment,
     startAssessment,
     completeStep,
     abandonStep,
