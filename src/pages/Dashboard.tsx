@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { useAssessment } from '@/hooks/useAssessment';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
 import { eadlModules } from '@/data/modules';
@@ -14,7 +13,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   FileSpreadsheet,
@@ -27,7 +25,7 @@ import {
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { session, getAnalytics, exportCSV, exportAOIMap, resetAssessment } = useAssessment();
-  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf' | 'aoi' | null>(null);
+  const [retakeOpen, setRetakeOpen] = useState(false);
 
   const analytics = getAnalytics();
 
@@ -67,79 +65,127 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      {/* Header */}
+      {/* Header — single title row on desktop, title + button bar on mobile */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
+        <div className="container px-4">
+          {/* Title row — always visible */}
+          <div className="flex h-14 items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="font-semibold text-foreground">Assessment Results</h1>
-              <p className="text-sm text-muted-foreground">
+
+            <div className="flex-1 min-w-0">
+              <h1 className="font-semibold text-foreground leading-tight">Assessment Results</h1>
+              <p className="text-xs text-muted-foreground truncate">
                 Participant {session.participantId}
               </p>
             </div>
+
+            {/* Desktop buttons — hidden below sm */}
+            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                CSV
+              </Button>
+
+              <Button variant="outline" size="sm" onClick={() => window.print()}>
+                <Printer className="h-4 w-4 mr-1" />
+                Print
+              </Button>
+
+              {session.eyeTrackingEnabled && (
+                <Button variant="outline" size="sm" onClick={handleExportAOI}>
+                  <Eye className="h-4 w-4 mr-1" />
+                  AOI Map
+                </Button>
+              )}
+
+              <Button variant="destructive" size="sm" onClick={() => setRetakeOpen(true)}>
+                <RotateCcw className="h-4 w-4 mr-1" />
+                Retake
+              </Button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportCSV}>
-              <FileSpreadsheet className="h-4 w-4 mr-1" />
+          {/* Mobile button bar — visible only below sm, full-width evenly spaced */}
+          <div className="flex sm:hidden gap-2 pb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 min-w-0"
+              onClick={handleExportCSV}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-1 flex-shrink-0" />
               CSV
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="h-4 w-4 mr-1" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 min-w-0"
+              onClick={() => window.print()}
+            >
+              <Printer className="h-4 w-4 mr-1 flex-shrink-0" />
               Print
             </Button>
 
             {session.eyeTrackingEnabled && (
-              <Button variant="outline" size="sm" onClick={handleExportAOI}>
-                <Eye className="h-4 w-4 mr-1" />
-                AOI Map
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 min-w-0"
+                onClick={handleExportAOI}
+              >
+                <Eye className="h-4 w-4 mr-1 flex-shrink-0" />
+                AOI
               </Button>
             )}
 
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  Retake
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Retake Assessment</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will clear your current results. Are you sure? This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => {
-                      resetAssessment();
-                      navigate('/assessment');
-                    }}
-                  >
-                    Yes, clear and retake
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="flex-1 min-w-0"
+              onClick={() => setRetakeOpen(true)}
+            >
+              <RotateCcw className="h-4 w-4 mr-1 flex-shrink-0" />
+              Retake
+            </Button>
           </div>
         </div>
       </header>
 
+      {/* Retake confirmation dialog — single instance, controlled by retakeOpen */}
+      <AlertDialog open={retakeOpen} onOpenChange={setRetakeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retake Assessment</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear your current results. Are you sure? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                resetAssessment();
+                navigate('/assessment');
+              }}
+            >
+              Yes, clear and retake
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Main Content */}
       <main className="container px-4 py-6">
         {/* Session Info */}
-        <div className="mb-6 rounded-xl border bg-card p-6 shadow-sm">
+        <div className="mb-6 rounded-xl border bg-card p-4 sm:p-6 shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Session ID</div>
-              <div className="font-mono text-sm">{session.id}</div>
+              <div className="font-mono text-sm break-all">{session.id}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Started</div>
@@ -163,7 +209,7 @@ const Dashboard: React.FC = () => {
 
         {/* Open-Ended Responses */}
         {session.moduleResults.some(m => m.openEndedResponse) && (
-          <div className="mt-6 rounded-xl border bg-card p-6 shadow-sm">
+          <div className="mt-6 rounded-xl border bg-card p-4 sm:p-6 shadow-sm">
             <h3 className="font-semibold text-foreground mb-4">Patient Responses</h3>
             <div className="space-y-4">
               {session.moduleResults

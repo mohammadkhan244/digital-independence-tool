@@ -229,7 +229,7 @@
 
   /* Analytics Cards */
   .analytics-card {
-    @apply rounded-xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md;
+    @apply rounded-xl border bg-card p-4 sm:p-6 shadow-sm transition-shadow hover:shadow-md;
   }
 
   .analytics-value {

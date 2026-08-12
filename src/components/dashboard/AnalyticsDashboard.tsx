@@ -181,8 +181,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               <YAxis
                 type="category"
                 dataKey="name"
-                width={120}
-                tick={{ fontSize: 12 }}
+                width={150}
+                tick={{ fontSize: 11 }}
               />
               <Tooltip
                 formatter={(value: number) => [`${value.toFixed(0)}%`, 'Score']}
