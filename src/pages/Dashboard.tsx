@@ -219,9 +219,9 @@ const Dashboard: React.FC = () => {
                   AOI Map
                 </Button>
               )}
-              <Button variant="destructive" size="sm" onClick={() => setRetakeOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => setRetakeOpen(true)}>
                 <RotateCcw className="h-4 w-4 mr-1" />
-                Retake
+                New Session
               </Button>
             </div>
           </div>
@@ -242,9 +242,9 @@ const Dashboard: React.FC = () => {
                 AOI
               </Button>
             )}
-            <Button variant="destructive" size="sm" className="flex-1 min-w-0" onClick={() => setRetakeOpen(true)}>
+            <Button variant="outline" size="sm" className="flex-1 min-w-0" onClick={() => setRetakeOpen(true)}>
               <RotateCcw className="h-4 w-4 mr-1 flex-shrink-0" />
-              Retake
+              New Session
             </Button>
           </div>
         </div>
@@ -254,18 +254,17 @@ const Dashboard: React.FC = () => {
       <AlertDialog open={retakeOpen} onOpenChange={setRetakeOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Retake Assessment</AlertDialogTitle>
+            <AlertDialogTitle>Start New Session</AlertDialogTitle>
             <AlertDialogDescription>
-              This will clear your current results. Are you sure? This cannot be undone.
+              This starts a fresh assessment for a new participant or session. All previous sessions remain available in the Session History dropdown — nothing is deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { resetAssessment(); navigate('/assessment'); }}
             >
-              Yes, clear and retake
+              Start New Session
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
