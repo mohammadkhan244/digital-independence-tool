@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment, computeAnalytics } from '@/hooks/useAssessment';
-import { loadAllSessions, fetchSessionsFromApi, mergeApiSessionsToLocal } from '@/hooks/useAssessmentPersistence';
+import { loadAllSessions, fetchSessionsFromApi, mergeApiSessionsToLocal, postSessionToApi } from '@/hooks/useAssessmentPersistence';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
 import { eadlModules } from '@/data/modules';
 import { AssessmentSession } from '@/types/assessment';
@@ -99,7 +99,10 @@ const Dashboard: React.FC = () => {
     if (def) setSelectedSessionId(def.id);
     setDataLoaded(true);
 
-    // 2. Fetch from KV in background — merge and write back to localStorage
+    // 2. Push any localStorage sessions that predate KV up to the API (one-time migration)
+    initial.forEach(s => postSessionToApi(s));
+
+    // 3. Fetch from KV in background — merge and write back to localStorage
     fetchSessionsFromApi().then(apiSessions => {
       if (apiSessions.length === 0) return;
       mergeApiSessionsToLocal(apiSessions);
