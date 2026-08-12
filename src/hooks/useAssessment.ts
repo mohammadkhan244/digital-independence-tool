@@ -164,7 +164,7 @@ export const useAssessment = () => {
         endTime: 0,
         errorsByType: { navigation: 0, targeting: 0, sequencing: 0, attention: 0, abandonment: 0 },
         subtotalScore: 0,
-        maxPossibleScore: currentModule.steps.length * 2,
+        maxPossibleScore: currentModule.steps.length * 3,
         independentStepsPercentage: 0,
       };
       updatedModuleResults = [...session.moduleResults, newModuleResult];
@@ -193,7 +193,7 @@ export const useAssessment = () => {
       const moduleResult = updatedModuleResults.find(m => m.moduleId === currentModule.id)!;
       const totalScore = moduleResult.stepResults.reduce((sum, s) => {
         if (s.score === 'N/A') return sum;
-        return sum + (s.score as number);
+        return sum + (s.cueLevel ?? (s.score as number));
       }, 0);
       const scoredSteps = moduleResult.stepResults.filter(s => s.score !== 'N/A');
       const independentSteps = moduleResult.stepResults.filter(s => s.score === 2).length;
@@ -373,8 +373,8 @@ export const useAssessment = () => {
         step.errors.forEach(e => errorProfile[e]++);
 
         if (step.score !== 'N/A') {
-          compositeScore += step.score as number;
-          maxPossibleScore += 2;
+          compositeScore += step.cueLevel ?? (step.score as number);
+          maxPossibleScore += 3;
         }
       });
 
