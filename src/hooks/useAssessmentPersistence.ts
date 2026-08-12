@@ -57,6 +57,7 @@ export function saveResults(session: AssessmentSession): void {
       RESULTS_KEY,
       JSON.stringify({ session, savedAt: new Date().toISOString() }),
     );
+    upsertToAllSessions(session);
   } catch {}
 }
 
@@ -73,4 +74,32 @@ export function loadResults(): AssessmentSession | null {
 
 export function clearResults(): void {
   localStorage.removeItem(RESULTS_KEY);
+}
+
+// ── Session history — all completed sessions, keyed by id (upsert) ──
+
+const ALL_SESSIONS_KEY = 'eadl_all_sessions';
+
+function upsertToAllSessions(session: AssessmentSession): void {
+  try {
+    const all = loadAllSessions();
+    const idx = all.findIndex(s => s.id === session.id);
+    if (idx >= 0) {
+      all[idx] = session;
+    } else {
+      all.push(session);
+    }
+    localStorage.setItem(ALL_SESSIONS_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+export function loadAllSessions(): AssessmentSession[] {
+  try {
+    const raw = localStorage.getItem(ALL_SESSIONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }

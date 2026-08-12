@@ -9,6 +9,7 @@ import {
   DifficultyMode,
   AssessmentMode,
   EyeTrackingEvent,
+  PerformanceAnalytics,
 } from '@/types/assessment';
 import { eadlModules } from '@/data/modules';
 import {
@@ -22,6 +23,76 @@ import {
 } from './useAssessmentPersistence';
 
 const ASSESSMENT_VERSION = '1.0.0';
+
+// Pure analytics computation — exported so Dashboard can call it on any session
+export function computeAnalytics(session: AssessmentSession | null): PerformanceAnalytics | null {
+  if (!session) return null;
+
+  let totalTime = 0;
+  let totalMisclicks = 0;
+  let totalBacktracks = 0;
+  let abandonedSteps = 0;
+  let compositeScore = 0;
+  let maxPossibleScore = 0;
+  const errorProfile: Record<ErrorType, number> = {
+    navigation: 0, targeting: 0, sequencing: 0, attention: 0, abandonment: 0,
+  };
+  const moduleScores: PerformanceAnalytics['moduleScores'] = [];
+
+  session.moduleResults.forEach(result => {
+    const moduleDef = eadlModules.find(m => m.id === result.moduleId);
+    totalTime += result.totalTime;
+
+    result.stepResults.forEach(step => {
+      totalMisclicks += step.misclicks;
+      totalBacktracks += step.backtracks;
+      if (step.abandoned) abandonedSteps++;
+      step.errors.forEach(e => errorProfile[e]++);
+      if (step.score !== 'N/A') {
+        compositeScore += step.cueLevel ?? (step.score as number);
+        maxPossibleScore += 3;
+      }
+    });
+
+    const cueBreakdown = result.stepResults.map(step => {
+      const stepDef = moduleDef?.steps.find(s => s.id === step.stepId);
+      const cl = step.cueLevel ?? null;
+      return {
+        stepId: step.stepId,
+        stepLabel: stepDef?.shortLabel ?? stepDef?.instruction ?? step.stepId,
+        cueLevel: cl,
+        cueLabel: step.cueLabel ?? null,
+        completed: cl !== null ? cl > 0 : step.score !== 0,
+      };
+    });
+
+    moduleScores.push({
+      moduleId: result.moduleId,
+      moduleName: moduleDef?.name || result.moduleId,
+      score: result.subtotalScore,
+      maxScore: result.maxPossibleScore,
+      percentage: result.maxPossibleScore > 0
+        ? (result.subtotalScore / result.maxPossibleScore) * 100
+        : 0,
+      cueBreakdown,
+    });
+  });
+
+  const totalSteps = session.moduleResults.reduce((sum, m) => sum + m.stepResults.length, 0);
+
+  return {
+    totalAssessmentTime: totalTime,
+    totalMisclicks,
+    totalBacktracks,
+    abandonedSteps,
+    averageTimePerStep: totalSteps > 0 ? totalTime / totalSteps : 0,
+    errorProfile,
+    compositeScore,
+    maxPossibleScore,
+    scorePercentage: maxPossibleScore > 0 ? (compositeScore / maxPossibleScore) * 100 : 0,
+    moduleScores,
+  };
+}
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
@@ -335,94 +406,8 @@ export const useAssessment = () => {
     return { module, step, stepIndex: session.currentStepIndex };
   }, [session]);
 
-  // Calculate overall analytics
-  const getAnalytics = useCallback(() => {
-    if (!session) return null;
-
-    let totalTime = 0;
-    let totalMisclicks = 0;
-    let totalBacktracks = 0;
-    let abandonedSteps = 0;
-    let compositeScore = 0;
-    let maxPossibleScore = 0;
-    const errorProfile: Record<ErrorType, number> = {
-      navigation: 0,
-      targeting: 0,
-      sequencing: 0,
-      attention: 0,
-      abandonment: 0,
-    };
-
-    const moduleScores: Array<{
-      moduleId: string;
-      moduleName: string;
-      score: number;
-      maxScore: number;
-      percentage: number;
-    }> = [];
-
-    session.moduleResults.forEach(result => {
-      const moduleDef = eadlModules.find(m => m.id === result.moduleId);
-      
-      totalTime += result.totalTime;
-      
-      result.stepResults.forEach(step => {
-        totalMisclicks += step.misclicks;
-        totalBacktracks += step.backtracks;
-        if (step.abandoned) abandonedSteps++;
-
-        // step.errors is the authoritative source; errorsByType is derived from the
-        // same data so we do NOT also iterate result.errorsByType (avoids double-count)
-        step.errors.forEach(e => errorProfile[e]++);
-
-        if (step.score !== 'N/A') {
-          compositeScore += step.cueLevel ?? (step.score as number);
-          maxPossibleScore += 3;
-        }
-      });
-
-      const cueBreakdown = result.stepResults.map(step => {
-        const stepDef = moduleDef?.steps.find(s => s.id === step.stepId);
-        const cl = step.cueLevel ?? null;
-        return {
-          stepId: step.stepId,
-          stepLabel: stepDef?.shortLabel ?? stepDef?.instruction ?? step.stepId,
-          cueLevel: cl,
-          cueLabel: step.cueLabel ?? null,
-          completed: cl !== null ? cl > 0 : step.score !== 0,
-        };
-      });
-
-      moduleScores.push({
-        moduleId: result.moduleId,
-        moduleName: moduleDef?.name || result.moduleId,
-        score: result.subtotalScore,
-        maxScore: result.maxPossibleScore,
-        percentage: result.maxPossibleScore > 0
-          ? (result.subtotalScore / result.maxPossibleScore) * 100
-          : 0,
-        cueBreakdown,
-      });
-    });
-
-    const totalSteps = session.moduleResults.reduce(
-      (sum, m) => sum + m.stepResults.length, 
-      0
-    );
-
-    return {
-      totalAssessmentTime: totalTime,
-      totalMisclicks,
-      totalBacktracks,
-      abandonedSteps,
-      averageTimePerStep: totalSteps > 0 ? totalTime / totalSteps : 0,
-      errorProfile,
-      compositeScore,
-      maxPossibleScore,
-      scorePercentage: maxPossibleScore > 0 ? (compositeScore / maxPossibleScore) * 100 : 0,
-      moduleScores,
-    };
-  }, [session]);
+  // Delegates to the exported pure function so the hook stays thin
+  const getAnalytics = useCallback(() => computeAnalytics(session), [session]);
 
   // Jump to a specific module (supports non-sequential access)
   const jumpToModule = useCallback((index: number) => {
