@@ -95,11 +95,10 @@ const Dashboard: React.FC = () => {
     combined.sort((a, b) => b.startTime - a.startTime);
     setAllSessions(combined);
 
-    // Default selection: current session if available, otherwise most recent
+    // Default to most recent session; leave filters at "All" so all sessions are visible
     const def = session ?? combined[0] ?? null;
     if (def) {
       setSelectedSessionId(def.id);
-      setFilterParticipant(def.participantId);
     }
 
     setDataLoaded(true);
