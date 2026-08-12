@@ -19,7 +19,6 @@ import {
   hasSavedProgress,
   saveResults,
   loadResults,
-  clearResults,
 } from './useAssessmentPersistence';
 
 const ASSESSMENT_VERSION = '1.0.0';
@@ -128,7 +127,6 @@ export const useAssessment = () => {
   // Initialize a new assessment session
   const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0, assessmentMode: AssessmentMode = 'assessment') => {
     clearProgress();
-    clearResults();
     const newSession: AssessmentSession = {
       id: generateId(),
       participantId: `P-${Date.now()}`,
@@ -424,10 +422,9 @@ export const useAssessment = () => {
     stepErrors.current = [];
   }, []);
 
-  // Reset all assessment state and clear both storage keys — used for "Retake"
+  // Reset in-progress state for a new session; completed history in eadl_all_sessions is never touched
   const resetAssessment = useCallback(() => {
     clearProgress();
-    clearResults();
     setSession(null);
     setIsRunning(false);
     setCurrentStepStartTime(null);

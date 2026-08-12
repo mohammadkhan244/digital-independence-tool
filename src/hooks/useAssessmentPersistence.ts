@@ -53,6 +53,11 @@ const RESULTS_KEY = 'eadl_assessment_results';
 
 export function saveResults(session: AssessmentSession): void {
   try {
+    // Migrate any existing result that predates eadl_all_sessions before overwriting
+    const existing = loadResults();
+    if (existing?.id && existing.endTime) {
+      upsertToAllSessions(existing);
+    }
     localStorage.setItem(
       RESULTS_KEY,
       JSON.stringify({ session, savedAt: new Date().toISOString() }),
