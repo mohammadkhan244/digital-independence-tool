@@ -194,6 +194,9 @@ const Assessment: React.FC = () => {
     moduleId: string;
   } | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
+  // Set to true when completeStep returns a session with endTime — used to
+  // drive navigation without relying on async state closure.
+  const [isAssessmentComplete, setIsAssessmentComplete] = useState(false);
 
   // ── Rehab mode state ──
   const [rehabCueCount, setRehabCueCount] = useState(0);
@@ -311,10 +314,14 @@ const Assessment: React.FC = () => {
 
       setAutomatedScore(null);
       setStepCompleted(false);
-      completeStep(score, undefined, cueLevel, cueLabel);
+      const updatedSession = completeStep(score, undefined, cueLevel, cueLabel);
 
       if (isLastStep) {
         setShowCongrats(true);
+        // Use the synchronous return value — avoids closure staleness
+        if (updatedSession?.endTime) {
+          setIsAssessmentComplete(true);
+        }
       }
     },
     [completeStep, currentModule, stepIndex],
@@ -480,13 +487,13 @@ const Assessment: React.FC = () => {
       setShowOpenEnded(false);
       setShowCongrats(false);
       setCompletedModuleInfo(null);
-      if (session?.endTime) {
+      if (isAssessmentComplete) {
         navigate('/dashboard');
       } else {
         setShowModuleOverview(true);
       }
     },
-    [setOpenEndedResponse, completedModuleInfo, session, navigate],
+    [setOpenEndedResponse, completedModuleInfo, isAssessmentComplete, navigate],
   );
 
   // ── Difficulty / restart ──────────────────────────────────────────────────
@@ -511,6 +518,7 @@ const Assessment: React.FC = () => {
     setShowResumePrompt(false);
     resetAssessment();
     setSelectedMode(null);
+    setIsAssessmentComplete(false);
   }, [resetAssessment]);
 
   const isModuleCompletePhase =

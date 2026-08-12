@@ -45,6 +45,7 @@ export const useAssessment = () => {
   // Expose setter so resetAssessment can prevent the resume-prompt useEffect
   // from re-firing after a deliberate clear (vs. an accidental exit)
   const [savedProgressExists, setSavedProgressExists] = useState(() => hasSavedProgress());
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [currentStepStartTime, setCurrentStepStartTime] = useState<number | null>(null);
   const [firstInteractionRecorded, setFirstInteractionRecorded] = useState(false);
   
@@ -505,11 +506,13 @@ export const useAssessment = () => {
         setCurrentStepStartTime(Date.now());
       }
     }
+    setHasLoaded(true);
   }, []);
 
   return {
     session,
     isRunning,
+    hasLoaded,
     savedProgressExists,
     clearProgress,
     resetAssessment,

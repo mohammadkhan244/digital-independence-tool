@@ -24,7 +24,7 @@ import {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { session, getAnalytics, exportCSV, exportAOIMap, resetAssessment } = useAssessment();
+  const { session, hasLoaded, getAnalytics, exportCSV, exportAOIMap, resetAssessment } = useAssessment();
   const [retakeOpen, setRetakeOpen] = useState(false);
 
   const analytics = getAnalytics();
@@ -51,13 +51,29 @@ const Dashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  if (!session || !analytics) {
+  if (!hasLoaded) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-foreground mb-2">No Assessment Data</h2>
-          <p className="text-muted-foreground mb-4">Complete an assessment to view the dashboard.</p>
-          <Button onClick={() => navigate('/')}>Return Home</Button>
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!session || !analytics) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center max-w-sm">
+          <h2 className="text-xl font-semibold text-foreground mb-2">Results Not Found</h2>
+          <p className="text-muted-foreground mb-2">
+            No completed assessment was found on this device.
+          </p>
+          <p className="text-sm text-muted-foreground mb-6">
+            If you just finished an assessment, your session data has been saved — return to the assessment to resume or retry.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => navigate('/assessment')}>Back to Assessment</Button>
+            <Button variant="ghost" onClick={() => navigate('/')}>Return Home</Button>
+          </div>
         </div>
       </div>
     );

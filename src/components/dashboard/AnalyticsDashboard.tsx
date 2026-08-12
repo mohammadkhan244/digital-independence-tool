@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { PerformanceAnalytics, ErrorType, CueLevel } from '@/types/assessment';
 import {
@@ -18,6 +18,7 @@ import {
   MousePointerClick,
   AlertTriangle,
   Trophy,
+  Info,
 } from 'lucide-react';
 
 interface AnalyticsDashboardProps {
@@ -38,6 +39,35 @@ const ERROR_LABELS: Record<ErrorType, string> = {
   sequencing: 'Sequencing',
   attention: 'Attention',
   abandonment: 'Abandonment',
+};
+
+const ERROR_DEFINITIONS: Partial<Record<ErrorType, string>> = {
+  navigation: 'Selected the wrong section, screen, or menu item while trying to complete the task',
+  targeting: 'Tapped or clicked the correct area but missed the intended element due to motor imprecision',
+};
+
+const ErrorInfoIcon: React.FC<{ definition: string }> = ({ definition }) => {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        className="ml-1 text-muted-foreground hover:text-foreground focus:outline-none"
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
+        aria-label="Definition"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      {visible && (
+        <span className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+          {definition}
+        </span>
+      )}
+    </span>
+  );
 };
 
 // Plain-language summary of cue dependence for a module
@@ -227,27 +257,39 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
 
             <div className="flex flex-col justify-center gap-2">
-              {errorData.map((error) => (
-                <div key={error.name} className="flex items-center gap-3">
-                  <div
-                    className="h-4 w-4 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: error.color }}
-                  />
-                  <span className="text-sm text-foreground flex-1">{error.name}</span>
-                  <span className={cn(
-                    'error-badge',
-                    error.name === 'Navigation' && 'error-navigation',
-                    error.name === 'Targeting' && 'error-targeting',
-                    error.name === 'Sequencing' && 'error-sequencing',
-                    error.name === 'Attention' && 'error-attention',
-                    error.name === 'Abandonment' && 'error-abandonment',
-                  )}>
-                    {error.value}
-                  </span>
-                </div>
-              ))}
+              {errorData.map((error) => {
+                const typeKey = Object.keys(ERROR_LABELS).find(
+                  k => ERROR_LABELS[k as ErrorType] === error.name,
+                ) as ErrorType | undefined;
+                const definition = typeKey ? ERROR_DEFINITIONS[typeKey] : undefined;
+                return (
+                  <div key={error.name} className="flex items-center gap-3">
+                    <div
+                      className="h-4 w-4 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: error.color }}
+                    />
+                    <span className="text-sm text-foreground flex-1 flex items-center">
+                      {error.name}
+                      {definition && <ErrorInfoIcon definition={definition} />}
+                    </span>
+                    <span className={cn(
+                      'error-badge',
+                      error.name === 'Navigation' && 'error-navigation',
+                      error.name === 'Targeting' && 'error-targeting',
+                      error.name === 'Sequencing' && 'error-sequencing',
+                      error.name === 'Attention' && 'error-attention',
+                      error.name === 'Abandonment' && 'error-abandonment',
+                    )}>
+                      {error.value}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Note: targeting errors reflect motor precision and should be interpreted separately from digital literacy.
+          </p>
         </div>
       )}
 
