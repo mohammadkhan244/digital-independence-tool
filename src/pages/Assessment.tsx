@@ -749,7 +749,7 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
-            {/* Scoring panel */}
+            {/* Scoring panel — cards are locked until the simulation task fires */}
             <ScoringPanel
               stepInstruction={currentStep!.instruction}
               automatedScore={automatedScore}
@@ -757,6 +757,7 @@ const Assessment: React.FC = () => {
               hints={currentStep!.hints}
               simpleMode={simpleMode}
               allowOverride={true}
+              taskCompleted={stepCompleted}
             />
           </>
         )}

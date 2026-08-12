@@ -8,6 +8,7 @@ import {
   Eye,
   XCircle,
   Edit2,
+  Lock,
 } from 'lucide-react';
 
 interface ScoringPanelProps {
@@ -18,6 +19,9 @@ interface ScoringPanelProps {
   allowOverride?: boolean;
   hints?: string[];
   simpleMode?: boolean;
+  // Must be true before the scoring cards become interactive.
+  // Set by the parent once the required simulation interaction fires.
+  taskCompleted?: boolean;
 }
 
 // 0–3 cue hierarchy — each maps to a legacy Score for backward compat
@@ -83,10 +87,11 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
   onScoreSubmit,
   allowOverride = true,
   simpleMode = true,
+  taskCompleted = false,
 }) => {
   const [showOverride, setShowOverride] = useState(false);
 
-  // Auto-detected score — show accept + optional override
+  // Auto-detected score — only reachable after taskCompleted=true
   if (automatedScore !== null && !showOverride) {
     const detectedCue = inferCueFromScore(automatedScore);
 
@@ -109,6 +114,7 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
           <CheckCircle2 className="h-6 w-6 text-success" />
         </div>
 
+        {/* Accept button — both conditions met: task done + cue inferred */}
         <Button
           onClick={() =>
             onScoreSubmit(automatedScore, detectedCue?.level, detectedCue?.label)
@@ -135,6 +141,7 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
   }
 
   // Manual scoring or override — 4 cue-level cards
+  // When !taskCompleted the cards are visible but greyed and non-interactive
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
       <div className="flex items-center justify-between">
@@ -151,7 +158,21 @@ export const ScoringPanel: React.FC<ScoringPanelProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Lock notice — shown only before the simulation task is completed */}
+      {!taskCompleted && (
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Complete the task above to unlock scoring</span>
+        </div>
+      )}
+
+      {/* Cards — pointer-events and opacity removed once task is done */}
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-3',
+          !taskCompleted && 'pointer-events-none select-none opacity-35',
+        )}
+      >
         {cueOptions.map((option) => (
           <button
             key={option.cueLevel}
