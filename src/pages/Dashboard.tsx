@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment, computeAnalytics } from '@/hooks/useAssessment';
-import { loadAllSessions } from '@/hooks/useAssessmentPersistence';
+import { loadAllSessions, fetchSessionsFromApi, mergeApiSessionsToLocal } from '@/hooks/useAssessmentPersistence';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
 import { eadlModules } from '@/data/modules';
 import { AssessmentSession } from '@/types/assessment';
@@ -76,32 +76,35 @@ const Dashboard: React.FC = () => {
   const [filterMode, setFilterMode]               = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState('');
 
+  // Merge helper — dedup by id, completed only, newest first
+  const mergeSessions = (lists: AssessmentSession[][]): AssessmentSession[] => {
+    const seen = new Set<string>();
+    const out: AssessmentSession[] = [];
+    lists.flat().forEach(s => {
+      if (s.endTime && !seen.has(s.id)) { seen.add(s.id); out.push(s); }
+    });
+    return out.sort((a, b) => b.startTime - a.startTime);
+  };
+
   // Load once after the hook has read from localStorage
   useEffect(() => {
     if (!hasLoaded || initialized.current) return;
     initialized.current = true;
 
-    const history  = loadAllSessions();
-    const combined: AssessmentSession[] = [];
-    const seen     = new Set<string>();
-
-    // Merge history + current hook session; only include completed sessions
-    ;[...history, ...(session ? [session] : [])].forEach(s => {
-      if (s.endTime && !seen.has(s.id)) {
-        seen.add(s.id);
-        combined.push(s);
-      }
-    });
-    combined.sort((a, b) => b.startTime - a.startTime);
-    setAllSessions(combined);
-
-    // Default to most recent session; leave filters at "All" so all sessions are visible
-    const def = session ?? combined[0] ?? null;
-    if (def) {
-      setSelectedSessionId(def.id);
-    }
-
+    // 1. Show localStorage data immediately (fast)
+    const local   = loadAllSessions();
+    const initial = mergeSessions([local, session ? [session] : []]);
+    setAllSessions(initial);
+    const def = session ?? initial[0] ?? null;
+    if (def) setSelectedSessionId(def.id);
     setDataLoaded(true);
+
+    // 2. Fetch from KV in background — merge and write back to localStorage
+    fetchSessionsFromApi().then(apiSessions => {
+      if (apiSessions.length === 0) return;
+      mergeApiSessionsToLocal(apiSessions);
+      setAllSessions(prev => mergeSessions([prev, apiSessions]));
+    });
   }, [hasLoaded, session]);
 
   // ── Derived values ────────────────────────────────────────────────────────

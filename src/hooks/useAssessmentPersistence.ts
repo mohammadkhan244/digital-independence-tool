@@ -64,6 +64,9 @@ export function saveResults(session: AssessmentSession): void {
     );
     upsertToAllSessions(session);
   } catch {}
+
+  // Fire-and-forget to KV — localStorage is the offline fallback
+  postSessionToApi(session);
 }
 
 export function loadResults(): AssessmentSession | null {
@@ -104,6 +107,63 @@ export function loadAllSessions(): AssessmentSession[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// Write API sessions into localStorage so they survive offline
+export function mergeApiSessionsToLocal(apiSessions: AssessmentSession[]): void {
+  if (apiSessions.length === 0) return;
+  try {
+    const local = loadAllSessions();
+    const idxMap = new Map(local.map((s, i) => [s.id, i]));
+    let changed = false;
+    apiSessions.forEach(s => {
+      if (!s.endTime) return;
+      const idx = idxMap.get(s.id);
+      if (idx !== undefined) {
+        local[idx] = s; // prefer API version (may have open-ended response added later)
+        changed = true;
+      } else {
+        local.push(s);
+        idxMap.set(s.id, local.length - 1);
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem(ALL_SESSIONS_KEY, JSON.stringify(local));
+    }
+  } catch {}
+}
+
+// ── Vercel KV API — fire-and-forget POST, best-effort GET ────────────────────
+
+export async function postSessionToApi(session: AssessmentSession): Promise<void> {
+  try {
+    await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session }),
+    });
+  } catch {
+    // Silently fail — localStorage is the fallback
+  }
+}
+
+export async function fetchSessionsFromApi(params?: {
+  participantId?: string;
+  mode?: string;
+}): Promise<AssessmentSession[]> {
+  try {
+    const url = new URL('/api/sessions', window.location.origin);
+    if (params?.participantId) url.searchParams.set('participantId', params.participantId);
+    if (params?.mode) url.searchParams.set('mode', params.mode);
+
+    const res = await fetch(url.toString());
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.sessions) ? data.sessions : [];
   } catch {
     return [];
   }
