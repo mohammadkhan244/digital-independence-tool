@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAssessment } from '@/hooks/useAssessment';
@@ -159,6 +159,90 @@ const MODE_BADGE: Record<AssessmentMode, { label: string; cls: string }> = {
   assessment:    { label: 'Assessment Mode',   cls: 'bg-primary/10 text-primary' },
   rehabilitation:{ label: 'Rehab Mode',        cls: 'bg-chart-1/10 text-chart-1' },
   reassessment:  { label: 'Reassessment Mode', cls: 'bg-chart-2/10 text-chart-2' },
+};
+
+// Demo animation: target [x%, y%] within the simulator wrapper div
+const DEMO_TARGETS: Record<string, [number, number]> = {
+  'dc-step1':   [50, 42],  // Messages icon (home screen mid-area)
+  'dc-step1-r': [50, 42],
+  'dc-step2':   [50, 30],  // Bold email row near top of inbox
+  'dc-step2-r': [50, 30],
+  'dc-step3':   [37, 83],  // Mute button (bottom-left controls)
+  'dc-step3-r': [47, 83],  // Camera button (second from left)
+  'ehr-step1':  [62, 40],  // CBC / Lipid Panel row in results list
+  'ehr-step1-r':[62, 40],
+  'ehr-step2':  [62, 50],  // Appointment card
+  'ehr-step2-r':[62, 50],
+  'ehr-step3':  [83, 10],  // New Message button (top-right)
+  'ehr-step3-r':[65, 42],  // Nurse Coordinator thread row
+};
+
+interface DemoPointerProps { stepKey: string; onDone: () => void; }
+
+const DemoPointer: React.FC<DemoPointerProps> = ({ stepKey, onDone }) => {
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const [phase, setPhase] = useState(0); // 0=appear, 1=move, 2=pause, 3=tap, 4=exit
+
+  const [ex, ey] = DEMO_TARGETS[stepKey] ?? [50, 50];
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setPhase(1), 100),   // start moving
+      setTimeout(() => setPhase(2), 950),   // arrive & pulse
+      setTimeout(() => setPhase(3), 1750),  // tap
+      setTimeout(() => setPhase(4), 1950),  // fade out
+      setTimeout(() => onDoneRef.current(), 2300), // done → reset sim
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const px = phase === 0 ? 50 : ex;
+  const py = phase === 0 ? 50 : ey;
+
+  return (
+    // Container blocks accidental taps during the demo
+    <div className="absolute inset-0 z-20" style={{ cursor: 'default' }}>
+      {/* Pulse ring at target during pause + tap */}
+      {(phase === 2 || phase === 3) && (
+        <div
+          className="absolute rounded-full border-2 border-primary animate-ping"
+          style={{
+            left: `${ex}%`,
+            top: `${ey}%`,
+            width: 44,
+            height: 44,
+            transform: 'translate(-50%, -50%)',
+            opacity: 0.55,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+      {/* Animated finger pointer */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${px}%`,
+          top: `${py}%`,
+          opacity: phase === 4 ? 0 : 1,
+          fontSize: '2rem',
+          lineHeight: 1,
+          transform: `translate(-50%, -85%) scale(${phase === 3 ? 0.65 : 1})`,
+          transition:
+            phase === 1 ? 'left 0.82s ease-in-out, top 0.82s ease-in-out' :
+            phase === 3 ? 'transform 0.12s ease-in' :
+            phase === 4 ? 'opacity 0.35s ease-out' :
+            'none',
+          willChange: 'left, top',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      >
+        👆
+      </div>
+    </div>
+  );
 };
 
 const Assessment: React.FC = () => {
@@ -327,6 +411,12 @@ const Assessment: React.FC = () => {
     [completeStep, currentModule, stepIndex],
   );
 
+  // Called by DemoPointer when its animation finishes
+  const handleDemoDone = useCallback(() => {
+    setShowDemoOverlay(false);
+    resetCurrentSim();
+  }, [resetCurrentSim]);
+
   // ── Rehab cue delivery ───────────────────────────────────────────────────
   const giveNextCue = useCallback(() => {
     const next = rehabCueCount + 1;
@@ -335,16 +425,12 @@ const Assessment: React.FC = () => {
     if (next === 2) {
       setRehabShowHint(true);
     } else if (next === 3) {
-      // Demo: show overlay for 3.5s then reset sim
+      // DemoPointer handles its own timing and calls handleDemoDone when done
       setShowDemoOverlay(true);
-      setTimeout(() => {
-        setShowDemoOverlay(false);
-        resetCurrentSim();
-      }, 3500);
     } else if (next === 4) {
       setShowStepByStep(true);
     }
-  }, [rehabCueCount, resetCurrentSim]);
+  }, [rehabCueCount]);
 
   // ── Rehab confirmation ───────────────────────────────────────────────────
   const handleRehabConfirm = useCallback(() => {
@@ -732,17 +818,19 @@ const Assessment: React.FC = () => {
   const headerSubtitle = isModuleCompletePhase ? 'Module Complete' : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
   const modeBadge = MODE_BADGE[activeMode];
 
-  // Display instruction (reassessment uses alternate if available)
-  const displayInstruction = isReassessMode
-    ? (currentStep!.reassessmentInstruction ?? currentStep!.instruction)
-    : currentStep!.instruction;
+  // Safe access — currentStep is undefined after last step while congrats/OEQ shows
+  const displayInstruction = currentStep
+    ? (isReassessMode
+        ? (currentStep.reassessmentInstruction ?? currentStep.instruction)
+        : currentStep.instruction)
+    : '';
 
-  // Display hint text (for verbal cue in rehab, or hint panel in assessment)
-  const displayHint = isReassessMode
-    ? (currentStep!.reassessmentHints?.[0] ?? currentStep!.hints?.[0])
-    : currentStep!.hints?.[0];
+  const displayHint = currentStep
+    ? (isReassessMode
+        ? (currentStep.reassessmentHints?.[0] ?? currentStep.hints?.[0])
+        : currentStep.hints?.[0])
+    : undefined;
 
-  // Step-by-step lookup key
   const sysKey = currentStep
     ? currentStep.id + (isReassessMode ? '-r' : '')
     : '';
@@ -888,20 +976,28 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
+            {/* Step-by-step checklist — rendered above simulator, never overlaid */}
+            {showStepByStep && stepByStepSteps.length > 0 && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm font-semibold text-foreground mb-3">Step-by-Step Instructions</p>
+                <ol className="space-y-2.5">
+                  {stepByStepSteps.map((step, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm text-foreground leading-snug">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             {/* ── Digital Communications simulator ── */}
             {isDCModule && (
               <div className="relative flex justify-center">
-                {/* Demo overlay */}
                 {showDemoOverlay && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[2.5rem] bg-black/75">
-                    <div className="text-center text-white px-6">
-                      <div className="mb-3 text-4xl">👆</div>
-                      <p className="font-semibold text-lg mb-1">Demonstration</p>
-                      <p className="text-sm text-white/80 max-w-xs">
-                        Watch how to complete the task, then try it yourself.
-                      </p>
-                    </div>
-                  </div>
+                  <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
                 )}
                 <PhoneFrame className="w-[320px]">
                   {phoneScreen === 'home' && (
@@ -958,42 +1054,15 @@ const Assessment: React.FC = () => {
             {/* ── EHR simulator ── */}
             {isEHRModule && (
               <div className="relative rounded-xl border shadow-xl overflow-hidden">
-                {/* Demo overlay */}
                 {showDemoOverlay && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 rounded-xl">
-                    <div className="text-center text-white px-6">
-                      <div className="mb-3 text-4xl">👆</div>
-                      <p className="font-semibold text-lg mb-1">Demonstration</p>
-                      <p className="text-sm text-white/80 max-w-xs">
-                        Watch how to complete the task, then try it yourself.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {/* Step-by-step overlay */}
-                {showStepByStep && stepByStepSteps.length > 0 && (
-                  <div className="absolute inset-0 z-20 flex items-start overflow-y-auto bg-white/97 rounded-xl p-4">
-                    <div className="w-full">
-                      <p className="text-sm font-semibold text-foreground mb-3">Step-by-Step Instructions</p>
-                      <ol className="space-y-2">
-                        {stepByStepSteps.map((step, i) => (
-                          <li key={i} className="flex items-start gap-2.5">
-                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
-                              {i + 1}
-                            </span>
-                            <span className="text-sm text-foreground leading-snug">{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  </div>
+                  <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
                 )}
                 <div className="h-[540px]">
                   <MyChartPortal
                     key={simulatorResetKey}
                     onAction={handleMyChartAction}
                     onMisclick={() => handleMisclick('navigation')}
-                    currentStep={currentStep!.id}
+                    currentStep={currentStep?.id ?? ''}
                     simpleMode={simpleMode}
                     showHint={effectiveShowHint}
                     screen={myChartScreen}
@@ -1003,30 +1072,13 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
-            {/* Step-by-step overlay for DC (phone) — shown as a card below the phone */}
-            {isDCModule && showStepByStep && stepByStepSteps.length > 0 && (
-              <div className="rounded-xl border bg-card p-4">
-                <p className="text-sm font-semibold text-foreground mb-3">Step-by-Step Instructions</p>
-                <ol className="space-y-2">
-                  {stepByStepSteps.map((step, i) => (
-                    <li key={i} className="flex items-start gap-2.5">
-                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm text-foreground leading-snug">{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-
             {/* Scoring panel — hidden in rehab mode (TherapistPanel handles confirmation) */}
             {!isRehabMode && (
               <ScoringPanel
                 stepInstruction={displayInstruction}
                 automatedScore={automatedScore}
                 onScoreSubmit={handleStepComplete}
-                hints={isReassessMode ? currentStep!.reassessmentHints : currentStep!.hints}
+                hints={isReassessMode ? currentStep?.reassessmentHints : currentStep?.hints}
                 simpleMode={simpleMode}
                 allowOverride={true}
                 taskCompleted={stepCompleted}
