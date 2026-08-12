@@ -29,11 +29,57 @@ interface MyChartPortalProps {
   simpleMode?: boolean;
   showHint?: boolean;
   screen?: MyChartView;
+  variant?: 'reassessment';
 }
 
 const MYCHART_NAVY = '#0033a0';
 const MYCHART_TEAL = '#046780';
 const MYCHART_TEAL_HOVER = '#045a70';
+
+const labResultsReassessment = [
+  {
+    id: 'lipid',
+    name: 'Lipid Panel',
+    date: 'July 2, 2025',
+    provider: 'Dr. Sarah Patel',
+    status: 'Final',
+    isRecent: true,
+    values: [
+      { name: 'Total Cholesterol', value: '198', unit: 'mg/dL', range: '<200', normal: true },
+      { name: 'LDL Cholesterol', value: '118', unit: 'mg/dL', range: '<130', normal: true },
+      { name: 'HDL Cholesterol', value: '52', unit: 'mg/dL', range: '>40', normal: true },
+      { name: 'Triglycerides', value: '142', unit: 'mg/dL', range: '<150', normal: true },
+    ],
+  },
+  {
+    id: 'tsh',
+    name: 'TSH (Thyroid)',
+    date: 'June 20, 2025',
+    provider: 'Dr. Sarah Patel',
+    status: 'Final',
+    isRecent: false,
+    values: [],
+  },
+];
+
+const appointmentReassessment = {
+  provider: 'Dr. James Okafor',
+  specialty: 'Physical Medicine & Rehabilitation',
+  date: 'August 5, 2025',
+  time: '10:00 AM',
+  location: 'Ohio State Wexner Medical Center',
+  address: '370 W 9th Ave, Columbus, OH 43210',
+  phone: '(614) 293-8000',
+  department: 'PM&R Institute',
+  instructions: 'Please bring a list of your current medications and wear comfortable clothing.',
+};
+
+const nurseThread = {
+  subject: 'Medication Refill Request',
+  sender: 'Nurse Coordinator',
+  sentAgo: '1 week ago',
+  preview: 'Your refill request has been reviewed. Please see the message below for instructions on your next steps.',
+};
 
 const labResults = [
   {
@@ -88,7 +134,12 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
   simpleMode = true,
   showHint = false,
   screen = 'results',
+  variant,
 }) => {
+  const isReassessment = variant === 'reassessment';
+  const activeLabResults = isReassessment ? labResultsReassessment : labResults;
+  const activeAppointment = isReassessment ? appointmentReassessment : appointment;
+  const targetLabId = isReassessment ? 'lipid' : 'cbc';
   const [view, setView] = useState<MyChartView>(screen);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
@@ -116,9 +167,9 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
   };
 
   const handleOpenResult = (resultId: string) => {
-    if (resultId === 'cbc') {
-      setExpandedResult(expandedResult === 'cbc' ? null : 'cbc');
-      if (expandedResult !== 'cbc') {
+    if (resultId === targetLabId) {
+      setExpandedResult(expandedResult === targetLabId ? null : targetLabId);
+      if (expandedResult !== targetLabId) {
         onAction?.('open_result');
       }
     } else {
@@ -229,7 +280,7 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                 <span className="text-xs text-gray-500">{labResults.length} results</span>
               </div>
 
-              {labResults.map(result => (
+              {activeLabResults.map(result => (
                 <div
                   key={result.id}
                   className={cn(
@@ -315,7 +366,9 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
               {simpleMode && !expandedResult && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
                   <p className="text-xs text-blue-700">
-                    Tap the <strong>Complete Blood Count (CBC)</strong> result to view your lab values
+                    {isReassessment
+                      ? <>Tap the <strong>Lipid Panel</strong> result to view your lab values</>
+                      : <>Tap the <strong>Complete Blood Count (CBC)</strong> result to view your lab values</>}
                   </p>
                 </div>
               )}
@@ -347,15 +400,19 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                     className="flex-shrink-0 rounded-lg p-2 text-center"
                     style={{ backgroundColor: `${MYCHART_NAVY}15` }}
                   >
-                    <p className="text-xs font-bold uppercase" style={{ color: MYCHART_NAVY }}>Jul</p>
-                    <p className="text-xl font-bold leading-none" style={{ color: MYCHART_NAVY }}>18</p>
+                    <p className="text-xs font-bold uppercase" style={{ color: MYCHART_NAVY }}>
+                      {isReassessment ? 'Aug' : 'Jul'}
+                    </p>
+                    <p className="text-xl font-bold leading-none" style={{ color: MYCHART_NAVY }}>
+                      {isReassessment ? '5' : '18'}
+                    </p>
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-bold text-sm text-gray-800">{appointment.provider}</p>
-                        <p className="text-xs text-gray-500">{appointment.specialty}</p>
+                        <p className="font-bold text-sm text-gray-800">{activeAppointment.provider}</p>
+                        <p className="text-xs text-gray-500">{activeAppointment.specialty}</p>
                       </div>
                       <ChevronDown
                         className={cn(
@@ -367,11 +424,11 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
-                        {appointment.time}
+                        {activeAppointment.time}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3.5 w-3.5" />
-                        {appointment.location}
+                        {activeAppointment.location}
                       </span>
                     </div>
                     {!appointmentExpanded && (
@@ -390,7 +447,7 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                         <Calendar className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: MYCHART_TEAL }} />
                         <div>
                           <p className="text-xs text-gray-500">Date &amp; Time</p>
-                          <p className="text-sm font-semibold text-gray-800">{appointment.date} at {appointment.time}</p>
+                          <p className="text-sm font-semibold text-gray-800">{activeAppointment.date} at {activeAppointment.time}</p>
                         </div>
                       </div>
 
@@ -398,9 +455,9 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                         <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: MYCHART_TEAL }} />
                         <div>
                           <p className="text-xs text-gray-500">Location</p>
-                          <p className="text-sm font-semibold text-gray-800">{appointment.location}</p>
-                          <p className="text-xs text-gray-500">{appointment.address}</p>
-                          <p className="text-xs text-gray-500">{appointment.department}</p>
+                          <p className="text-sm font-semibold text-gray-800">{activeAppointment.location}</p>
+                          <p className="text-xs text-gray-500">{activeAppointment.address}</p>
+                          <p className="text-xs text-gray-500">{activeAppointment.department}</p>
                         </div>
                       </div>
 
@@ -408,14 +465,14 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                         <Phone className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: MYCHART_TEAL }} />
                         <div>
                           <p className="text-xs text-gray-500">Phone</p>
-                          <p className="text-sm font-semibold text-gray-800">{appointment.phone}</p>
+                          <p className="text-sm font-semibold text-gray-800">{activeAppointment.phone}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
                       <p className="text-xs font-semibold text-amber-800">Instructions</p>
-                      <p className="mt-0.5 text-xs text-amber-700">{appointment.instructions}</p>
+                      <p className="mt-0.5 text-xs text-amber-700">{activeAppointment.instructions}</p>
                     </div>
                   </div>
                 )}
@@ -433,7 +490,9 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
               {simpleMode && !appointmentExpanded && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
                   <p className="text-xs text-blue-700">
-                    Tap the appointment card with <strong>Dr. Sarah Patel</strong> to view your details
+                    {isReassessment
+                      ? <>Tap the appointment card with <strong>Dr. James Okafor</strong> to view your details</>
+                      : <>Tap the appointment card with <strong>Dr. Sarah Patel</strong> to view your details</>}
                   </p>
                 </div>
               )}
@@ -461,30 +520,52 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                     </button>
                   </div>
 
-                  {/* Prior thread */}
-                  <div className="flex-1 overflow-y-auto p-3">
-                    <button
-                      onClick={onMisclick}
-                      className="flex w-full items-start gap-3 rounded-xl border bg-white p-3 shadow-sm text-left hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="h-9 w-9 flex-shrink-0 rounded-full bg-blue-700 flex items-center justify-center">
-                        <span className="text-xs font-bold text-white">SP</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between">
-                          <p className="text-sm font-semibold text-gray-800">{priorThread.sender}</p>
-                          <p className="text-xs text-gray-500">{priorThread.sentAgo}</p>
+                  {/* Thread list */}
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {/* Reassessment: Nurse Coordinator thread is the target */}
+                    {isReassessment ? (
+                      <button
+                        onClick={() => { setMessagesSubView('compose'); onAction?.('open_compose'); }}
+                        className="flex w-full items-start gap-3 rounded-xl border bg-white p-3 shadow-sm text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="h-9 w-9 flex-shrink-0 rounded-full bg-emerald-700 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">NC</span>
                         </div>
-                        <p className="text-xs font-medium text-gray-600 mt-0.5">{priorThread.subject}</p>
-                        <p className="mt-1 text-xs text-gray-500 line-clamp-2">{priorThread.preview}</p>
-                      </div>
-                    </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between">
+                            <p className="text-sm font-semibold text-gray-800">{nurseThread.sender}</p>
+                            <p className="text-xs text-gray-500">{nurseThread.sentAgo}</p>
+                          </div>
+                          <p className="text-xs font-medium text-gray-600 mt-0.5">{nurseThread.subject}</p>
+                          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{nurseThread.preview}</p>
+                        </div>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={onMisclick}
+                        className="flex w-full items-start gap-3 rounded-xl border bg-white p-3 shadow-sm text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="h-9 w-9 flex-shrink-0 rounded-full bg-blue-700 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">SP</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between">
+                            <p className="text-sm font-semibold text-gray-800">{priorThread.sender}</p>
+                            <p className="text-xs text-gray-500">{priorThread.sentAgo}</p>
+                          </div>
+                          <p className="text-xs font-medium text-gray-600 mt-0.5">{priorThread.subject}</p>
+                          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{priorThread.preview}</p>
+                        </div>
+                      </button>
+                    )}
                   </div>
 
                   {simpleMode && (
                     <div className="flex-shrink-0 border-t bg-blue-50 px-3 py-2.5 text-center">
                       <p className="text-xs text-blue-700">
-                        Tap <strong>New Message</strong> to compose a message to your doctor
+                        {isReassessment
+                          ? <>Tap the <strong>Nurse Coordinator</strong> message to reply</>
+                          : <>Tap <strong>New Message</strong> to compose a message to your doctor</>}
                       </p>
                     </div>
                   )}
@@ -502,7 +583,9 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                     >
                       ← Back
                     </button>
-                    <h2 className="text-sm font-bold text-gray-800">New Message</h2>
+                    <h2 className="text-sm font-bold text-gray-800">
+                      {isReassessment ? 'Reply' : 'New Message'}
+                    </h2>
                     <button
                       onClick={handleSendMessage}
                       className={cn(
@@ -522,10 +605,12 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ backgroundColor: `${MYCHART_NAVY}15` }}>
                         <div className="h-5 w-5 rounded-full bg-blue-700 flex items-center justify-center">
-                          <span className="text-[9px] font-bold text-white">SP</span>
+                          <span className="text-[9px] font-bold text-white">
+                            {isReassessment ? 'NC' : 'SP'}
+                          </span>
                         </div>
                         <span className="text-xs font-semibold" style={{ color: MYCHART_NAVY }}>
-                          Dr. Sarah Patel
+                          {isReassessment ? 'Nurse Coordinator' : 'Dr. Sarah Patel'}
                         </span>
                       </div>
                     </div>
@@ -549,7 +634,7 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                       showHint && !messageBody && 'ring-2 ring-inset',
                     )}
                     style={showHint && !messageBody ? { ringColor: MYCHART_TEAL } : {}}
-                    placeholder="Type your message to Dr. Patel…"
+                    placeholder={isReassessment ? 'Type your reply…' : 'Type your message to Dr. Patel…'}
                     value={messageBody}
                     onChange={e => setMessageBody(e.target.value)}
                   />

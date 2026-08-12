@@ -9,6 +9,7 @@ interface GmailAppProps {
   onMisclick?: () => void;
   simpleMode?: boolean;
   showHint?: boolean;
+  variant?: 'reassessment';
 }
 
 const emails = [
@@ -34,18 +35,49 @@ const emails = [
   },
 ];
 
+const emailsReassessment = [
+  {
+    id: 'ohiohealth',
+    from: 'OhioHealth Patient Services',
+    initials: 'OH',
+    avatarBg: 'bg-emerald-600',
+    subject: 'Your appointment summary is ready',
+    preview: 'Your recent visit summary and follow-up instructions are now available…',
+    time: '9:18 AM',
+    unread: true,
+  },
+  {
+    id: 'cvs',
+    from: 'CVS Pharmacy',
+    initials: 'CV',
+    avatarBg: 'bg-red-600',
+    subject: 'Prescription ready for pickup',
+    preview: 'Your Lisinopril 10mg prescription is ready at our Main Street location.',
+    time: 'Yesterday',
+    unread: false,
+  },
+];
+
 export const GmailApp: React.FC<GmailAppProps> = ({
   onAction,
   onMisclick,
   simpleMode = true,
   showHint = false,
+  variant,
 }) => {
+  const isReassessment = variant === 'reassessment';
+  const emailList = isReassessment ? emailsReassessment : emails;
+  const targetEmailId = isReassessment ? 'ohiohealth' : 'doctor-office';
+  const defaultSubject = isReassessment
+    ? 'Re: Your appointment summary is ready'
+    : 'Re: Your Upcoming Appointment & Lab Results';
+
   const [view, setView] = useState<GmailView>('inbox');
   const [replyText, setReplyText] = useState('');
-  const [replySubject, setReplySubject] = useState('Re: Your Upcoming Appointment & Lab Results');
+  const [replySubject, setReplySubject] = useState(defaultSubject);
 
   const handleEmailTap = (emailId: string) => {
-    if (emailId === 'doctor-office') {
+    if (emailId === targetEmailId) {
       setView('thread');
       onAction?.('open_email');
     } else {
@@ -125,6 +157,14 @@ export const GmailApp: React.FC<GmailAppProps> = ({
 
   /* ── Thread view ── */
   if (view === 'thread') {
+    const threadSubject = isReassessment
+      ? 'Your appointment summary is ready'
+      : 'Your Upcoming Appointment & Lab Results';
+    const threadFrom = isReassessment ? 'OhioHealth Patient Services' : "Dr. Patel's Office";
+    const threadInitials = isReassessment ? 'OH' : 'DO';
+    const threadTime = isReassessment ? '9:18 AM' : '10:42 AM';
+    const threadAvatarBg = isReassessment ? 'bg-emerald-600' : 'bg-blue-600';
+
     return (
       <div className="flex h-full flex-col bg-white">
         <div className="flex items-center gap-2 border-b bg-white px-3 py-3 shadow-sm">
@@ -132,7 +172,7 @@ export const GmailApp: React.FC<GmailAppProps> = ({
             <ChevronLeft className="h-5 w-5 text-gray-600" />
           </button>
           <span className="flex-1 truncate text-sm font-medium text-gray-800">
-            Your Upcoming Appointment &amp; Lab Results
+            {threadSubject}
           </span>
           <button onClick={onMisclick} className="p-1">
             <MoreVertical className="h-5 w-5 text-gray-500" />
@@ -140,42 +180,59 @@ export const GmailApp: React.FC<GmailAppProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          <h2 className="font-semibold text-gray-800 text-sm">
-            Your Upcoming Appointment &amp; Lab Results
-          </h2>
+          <h2 className="font-semibold text-gray-800 text-sm">{threadSubject}</h2>
 
           <div className="flex items-start gap-3">
-            <div className="h-9 w-9 flex-shrink-0 rounded-full bg-blue-600 flex items-center justify-center">
-              <span className="text-xs font-bold text-white">DO</span>
+            <div className={`h-9 w-9 flex-shrink-0 rounded-full ${threadAvatarBg} flex items-center justify-center`}>
+              <span className="text-xs font-bold text-white">{threadInitials}</span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between">
-                <span className="font-medium text-sm text-gray-800">Dr. Patel's Office</span>
-                <span className="text-xs text-gray-500 ml-2 flex-shrink-0">10:42 AM</span>
+                <span className="font-medium text-sm text-gray-800">{threadFrom}</span>
+                <span className="text-xs text-gray-500 ml-2 flex-shrink-0">{threadTime}</span>
               </div>
               <p className="text-xs text-gray-500 mb-3">to me</p>
-              <div className="text-sm text-gray-700 leading-relaxed space-y-2">
-                <p>Dear Patient,</p>
-                <p>
-                  We wanted to follow up regarding your recent lab results. Your most recent
-                  Complete Blood Count looks good — please log in to MyChart to review the
-                  full details.
-                </p>
-                <p>
-                  Your upcoming appointment with Dr. Patel is scheduled for{' '}
-                  <strong>July 18, 2025 at 2:30 PM</strong> at Ohio State Wexner Medical
-                  Center. Please arrive 10 minutes early.
-                </p>
-                <p>
-                  If you have any questions about your medications or results, don't hesitate
-                  to reach out.
-                </p>
-                <p>
-                  Best regards,
-                  <br />
-                  Dr. Patel's Office
-                </p>
-              </div>
+              {isReassessment ? (
+                <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                  <p>Dear Patient,</p>
+                  <p>
+                    Your visit summary from your recent appointment is now available. Please
+                    review your follow-up instructions and contact us if you have any questions.
+                  </p>
+                  <p>
+                    Your next appointment has been scheduled. Please log in to MyChart for
+                    full details.
+                  </p>
+                  <p>
+                    Best regards,
+                    <br />
+                    OhioHealth Patient Services
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                  <p>Dear Patient,</p>
+                  <p>
+                    We wanted to follow up regarding your recent lab results. Your most recent
+                    Complete Blood Count looks good — please log in to MyChart to review the
+                    full details.
+                  </p>
+                  <p>
+                    Your upcoming appointment with Dr. Patel is scheduled for{' '}
+                    <strong>July 18, 2025 at 2:30 PM</strong> at Ohio State Wexner Medical
+                    Center. Please arrive 10 minutes early.
+                  </p>
+                  <p>
+                    If you have any questions about your medications or results, don't hesitate
+                    to reach out.
+                  </p>
+                  <p>
+                    Best regards,
+                    <br />
+                    Dr. Patel's Office
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -224,8 +281,8 @@ export const GmailApp: React.FC<GmailAppProps> = ({
 
       {/* Email list */}
       <div className="flex-1 overflow-y-auto relative">
-        {emails.map(email => {
-          const isTarget = email.id === 'doctor-office';
+        {emailList.map(email => {
+          const isTarget = email.id === targetEmailId;
           return (
             <button
               key={email.id}
@@ -298,7 +355,9 @@ export const GmailApp: React.FC<GmailAppProps> = ({
       {simpleMode && (
         <div className="border-t bg-blue-50 px-3 py-2 text-center">
           <p className="text-xs text-blue-700">
-            Tap the bold email from Dr. Patel's Office to open it
+            {isReassessment
+              ? 'Tap the bold email from OhioHealth Patient Services to open it'
+              : "Tap the bold email from Dr. Patel's Office to open it"}
           </p>
         </div>
       )}

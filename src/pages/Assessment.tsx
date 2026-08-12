@@ -11,6 +11,8 @@ import { TelehealthCall } from '@/components/phone/TelehealthCall';
 import { MyChartPortal } from '@/components/portal/MyChartPortal';
 import { ScoringPanel } from '@/components/assessment/ScoringPanel';
 import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
+import { ModeSelection } from '@/components/assessment/ModeSelection';
+import { TherapistPanel, computeRehabCueResult } from '@/components/assessment/TherapistPanel';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -34,7 +36,7 @@ import {
   AlertTriangle,
   Clock,
 } from 'lucide-react';
-import { DifficultyMode, Score, ErrorType, CueLevel } from '@/types/assessment';
+import { DifficultyMode, Score, ErrorType, CueLevel, AssessmentMode } from '@/types/assessment';
 
 type PhoneScreen =
   | 'home'
@@ -45,7 +47,6 @@ type PhoneScreen =
 
 type MyChartScreen = 'results' | 'appointments' | 'messages';
 
-// Static "coming soon" placeholders shown below the active modules
 const comingSoonModules = [
   {
     name: 'Money Management',
@@ -79,6 +80,87 @@ const comingSoonModules = [
   },
 ];
 
+// Step-by-step instructions per stepId (and reassessment variant)
+const STEP_BY_STEP: Record<string, string[]> = {
+  'dc-step1': [
+    'Tap the Messages app icon on the home screen',
+    'Find "Emma (Daughter)" in the contact list',
+    'Tap her name to open the conversation',
+    'Tap the text box at the bottom and type your message',
+    'Tap the blue Send button',
+  ],
+  'dc-step1-r': [
+    'Tap the Messages app icon on the home screen',
+    'Find "Michael (Son)" in the contact list',
+    'Tap his name to open the conversation',
+    'Tap the text box at the bottom and type your message',
+    'Tap the blue Send button',
+  ],
+  'dc-step2': [
+    'In Gmail, find the bold email from Dr. Patel\'s Office',
+    'Tap the email to open it',
+    'Tap the Reply button at the bottom',
+    'Type your response in the text area',
+    'Tap Send when ready',
+  ],
+  'dc-step2-r': [
+    'In Gmail, find the bold email from OhioHealth Patient Services',
+    'Tap the email to open it',
+    'Tap the Reply button at the bottom',
+    'Type your response in the text area',
+    'Tap Send when ready',
+  ],
+  'dc-step3': [
+    'Look at the row of buttons at the bottom of the call',
+    'Find the microphone button (leftmost circular button)',
+    'Tap the microphone button to mute yourself',
+  ],
+  'dc-step3-r': [
+    'Look at the row of buttons at the bottom of the call',
+    'Find the camera button (second button from the left)',
+    'Tap the camera button to turn on your video',
+  ],
+  'ehr-step1': [
+    'Tap "Test Results" in the left-side menu',
+    'Find the "Complete Blood Count (CBC)" — the most recent result',
+    'Tap it to expand and view your lab values',
+  ],
+  'ehr-step1-r': [
+    'Tap "Test Results" in the left-side menu',
+    'Find the "Lipid Panel" — the most recent result',
+    'Tap it to expand and view your lab values',
+  ],
+  'ehr-step2': [
+    'Tap "Appointments" in the left-side menu',
+    'Find the upcoming appointment card',
+    'Tap the card to expand the full details',
+  ],
+  'ehr-step2-r': [
+    'Tap "Appointments" in the left-side menu',
+    'Find the upcoming appointment with Dr. James Okafor',
+    'Tap the card to expand the full details',
+  ],
+  'ehr-step3': [
+    'Tap "Messages" in the left-side menu',
+    'Tap the "New Message" button in the top right',
+    'Type your question about your medication',
+    'Tap Send when ready',
+  ],
+  'ehr-step3-r': [
+    'Tap "Messages" in the left-side menu',
+    'Find the message from "Nurse Coordinator"',
+    'Tap it to open the thread',
+    'Type your reply and tap Send',
+  ],
+};
+
+// Mode badge config
+const MODE_BADGE: Record<AssessmentMode, { label: string; cls: string }> = {
+  assessment:    { label: 'Assessment Mode',   cls: 'bg-primary/10 text-primary' },
+  rehabilitation:{ label: 'Rehab Mode',        cls: 'bg-chart-1/10 text-chart-1' },
+  reassessment:  { label: 'Reassessment Mode', cls: 'bg-chart-2/10 text-chart-2' },
+};
+
 const Assessment: React.FC = () => {
   const navigate = useNavigate();
   const {
@@ -96,6 +178,9 @@ const Assessment: React.FC = () => {
     getCurrentContext,
   } = useAssessment();
 
+  // ── Mode selection (persists between ModeSelection and module entry) ──
+  const [selectedMode, setSelectedMode] = useState<AssessmentMode | null>(null);
+
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [showModuleOverview, setShowModuleOverview] = useState(true);
   const [phoneScreen, setPhoneScreen] = useState<PhoneScreen>('home');
@@ -110,6 +195,15 @@ const Assessment: React.FC = () => {
   } | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
 
+  // ── Rehab mode state ──
+  const [rehabCueCount, setRehabCueCount] = useState(0);
+  const [rehabShowHint, setRehabShowHint] = useState(false);
+  const [showDemoOverlay, setShowDemoOverlay] = useState(false);
+  const [showStepByStep, setShowStepByStep] = useState(false);
+  const [showTryAgain, setShowTryAgain] = useState(false);
+  const [showSuccessFlash, setShowSuccessFlash] = useState(false);
+  const [simulatorResetKey, setSimulatorResetKey] = useState(0);
+
   const context = getCurrentContext();
   const currentModule = context?.module;
   const currentStep = context?.step;
@@ -121,18 +215,36 @@ const Assessment: React.FC = () => {
   const isDCModule = currentModule?.id === 'digital-comms';
   const isEHRModule = currentModule?.id === 'ehr';
 
-  // Show resume prompt on mount if saved progress exists
+  // Active mode comes from session (once started) or selected state (before entry)
+  const activeMode: AssessmentMode = session?.assessmentMode ?? selectedMode ?? 'assessment';
+  const isRehabMode = activeMode === 'rehabilitation';
+  const isReassessMode = activeMode === 'reassessment';
+
+  // Effective showHint: in rehab, driven by cue count; otherwise simpleMode
+  const effectiveShowHint = isRehabMode ? rehabShowHint : showHints;
+
+  // Target contact for SMS: 'son' in reassessment, 'daughter' otherwise
+  const targetContactId = isReassessMode ? 'son' : 'daughter';
+
+  // ── Resume prompt ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isRunning && !session && savedProgressExists) {
       setShowResumePrompt(true);
     }
   }, [isRunning, session, savedProgressExists]);
 
-  // ─── Step synchronization ─────────────────────────────────────
+  // ── Step synchronization ──────────────────────────────────────────────────
   useEffect(() => {
     if (!currentStep || !currentModule) return;
     setStepCompleted(false);
     setAutomatedScore(null);
+    // Reset rehab cue state on every new step
+    setRehabCueCount(0);
+    setRehabShowHint(false);
+    setShowDemoOverlay(false);
+    setShowStepByStep(false);
+    setShowTryAgain(false);
+    setShowSuccessFlash(false);
 
     const mid = currentModule.id;
     const sid = currentStep.id;
@@ -152,7 +264,39 @@ const Assessment: React.FC = () => {
     }
   }, [currentModule?.id, currentStep?.id]);
 
-  // ─── Step completion ──────────────────────────────────────────
+  // ── Rehab: success flash when task completes ──────────────────────────────
+  useEffect(() => {
+    if (stepCompleted && isRehabMode) {
+      setShowSuccessFlash(true);
+      const t = setTimeout(() => setShowSuccessFlash(false), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [stepCompleted, isRehabMode]);
+
+  // ── Reset sim to current step's initial state ─────────────────────────────
+  const resetCurrentSim = useCallback(() => {
+    if (!currentModule || !currentStep) return;
+    const mid = currentModule.id;
+    const sid = currentStep.id;
+    if (mid === 'digital-comms') {
+      switch (sid) {
+        case 'dc-step1': setPhoneScreen('home'); break;
+        case 'dc-step2': setPhoneScreen('gmail'); break;
+        case 'dc-step3': setPhoneScreen('telehealth'); break;
+      }
+    } else if (mid === 'ehr') {
+      switch (sid) {
+        case 'ehr-step1': setMyChartScreen('results'); break;
+        case 'ehr-step2': setMyChartScreen('appointments'); break;
+        case 'ehr-step3': setMyChartScreen('messages'); break;
+      }
+    }
+    setStepCompleted(false);
+    setAutomatedScore(null);
+    setSimulatorResetKey(k => k + 1);
+  }, [currentModule, currentStep]);
+
+  // ── Step completion ───────────────────────────────────────────────────────
   const handleStepComplete = useCallback(
     (score: Score, cueLevel?: CueLevel, cueLabel?: string) => {
       const isLastStep =
@@ -176,7 +320,37 @@ const Assessment: React.FC = () => {
     [completeStep, currentModule, stepIndex],
   );
 
-  // ─── Digital Comms: SMS handlers ─────────────────────────────
+  // ── Rehab cue delivery ───────────────────────────────────────────────────
+  const giveNextCue = useCallback(() => {
+    const next = rehabCueCount + 1;
+    setRehabCueCount(next);
+
+    if (next === 2) {
+      setRehabShowHint(true);
+    } else if (next === 3) {
+      // Demo: show overlay for 3.5s then reset sim
+      setShowDemoOverlay(true);
+      setTimeout(() => {
+        setShowDemoOverlay(false);
+        resetCurrentSim();
+      }, 3500);
+    } else if (next === 4) {
+      setShowStepByStep(true);
+    }
+  }, [rehabCueCount, resetCurrentSim]);
+
+  // ── Rehab confirmation ───────────────────────────────────────────────────
+  const handleRehabConfirm = useCallback(() => {
+    const { level, label } = computeRehabCueResult(rehabCueCount);
+    const score: Score = level === 3 ? 2 : level >= 1 ? 1 : 0;
+    handleStepComplete(score, level, label);
+  }, [rehabCueCount, handleStepComplete]);
+
+  const handleRehabUnable = useCallback(() => {
+    handleStepComplete(0, 0 as CueLevel, 'Unable');
+  }, [handleStepComplete]);
+
+  // ── DC SMS handlers ──────────────────────────────────────────────────────
   const handleAppTap = useCallback(
     (appId: string) => {
       if (stepCompleted) return;
@@ -192,11 +366,11 @@ const Assessment: React.FC = () => {
     (contactId: string) => {
       if (stepCompleted) return;
       const sid = currentStep?.id;
-      if (sid === 'dc-step1' && contactId === 'daughter') {
+      if (sid === 'dc-step1' && contactId === targetContactId) {
         setPhoneScreen('messages-conversation');
       }
     },
-    [currentStep, stepCompleted],
+    [currentStep, stepCompleted, targetContactId],
   );
 
   const handleSendMessage = useCallback(
@@ -210,7 +384,7 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted],
   );
 
-  // ─── Digital Comms: Gmail handler ────────────────────────────
+  // ── DC Gmail handler ──────────────────────────────────────────────────────
   const handleGmailAction = useCallback(
     (action: string) => {
       if (stepCompleted) return;
@@ -222,19 +396,22 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted],
   );
 
-  // ─── Digital Comms: Telehealth handler ───────────────────────
+  // ── DC Telehealth handler ─────────────────────────────────────────────────
   const handleTelehealthAction = useCallback(
     (action: string) => {
       if (stepCompleted) return;
-      if (action === 'toggle_mute' && currentStep?.id === 'dc-step3') {
-        setAutomatedScore(2);
-        setStepCompleted(true);
+      if (currentStep?.id === 'dc-step3') {
+        const expectedAction = isReassessMode ? 'toggle_camera' : 'toggle_mute';
+        if (action === expectedAction) {
+          setAutomatedScore(2);
+          setStepCompleted(true);
+        }
       }
     },
-    [currentStep, stepCompleted],
+    [currentStep, stepCompleted, isReassessMode],
   );
 
-  // ─── EHR: MyChart handlers ────────────────────────────────────
+  // ── EHR MyChart handlers ──────────────────────────────────────────────────
   const handleMyChartAction = useCallback(
     (action: string) => {
       if (stepCompleted) return;
@@ -254,17 +431,19 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted],
   );
 
-  // ─── Misclick helper ──────────────────────────────────────────
+  // ── Misclick ──────────────────────────────────────────────────────────────
   const handleMisclick = useCallback(
     (errorType: ErrorType = 'targeting') => {
       recordMisclick(errorType);
+      if (isRehabMode) {
+        setShowTryAgain(true);
+        setTimeout(() => setShowTryAgain(false), 1500);
+      }
     },
-    [recordMisclick],
+    [recordMisclick, isRehabMode],
   );
 
-  // ─── Module overview helpers ───────────────────────────────────
-
-  // A module is completed when all its steps have been scored
+  // ── Module overview helpers ───────────────────────────────────────────────
   const isModuleCompleted = useCallback(
     (moduleId: string): boolean => {
       if (!session) return false;
@@ -276,25 +455,23 @@ const Assessment: React.FC = () => {
     [session],
   );
 
-  // Enter a specific module by index — supports non-sequential access
   const handleEnterSpecificModule = useCallback(
     (moduleIndex: number) => {
       if (!session) {
-        startAssessment(true, false, moduleIndex);
+        startAssessment(true, false, moduleIndex, selectedMode ?? 'assessment');
       } else {
         jumpToModule(moduleIndex);
       }
       setShowModuleOverview(false);
     },
-    [session, startAssessment, jumpToModule],
+    [session, startAssessment, jumpToModule, selectedMode],
   );
 
-  // Keep the old name for the CTA button (resumes from wherever we are)
   const handleEnterModule = useCallback(() => {
     handleEnterSpecificModule(session ? session.currentModuleIndex : 0);
   }, [handleEnterSpecificModule, session]);
 
-  // ─── Open-ended response ──────────────────────────────────────
+  // ── Open-ended response ───────────────────────────────────────────────────
   const handleOpenEndedSubmit = useCallback(
     (response: string) => {
       if (completedModuleInfo) {
@@ -312,7 +489,7 @@ const Assessment: React.FC = () => {
     [setOpenEndedResponse, completedModuleInfo, session, navigate],
   );
 
-  // ─── Difficulty / restart ─────────────────────────────────────
+  // ── Difficulty / restart ──────────────────────────────────────────────────
   const toggleDifficulty = useCallback(() => {
     setDifficultyMode(simpleMode ? 'complex' : 'simple');
   }, [simpleMode, setDifficultyMode]);
@@ -323,18 +500,23 @@ const Assessment: React.FC = () => {
     setMyChartScreen('results');
     setAutomatedScore(null);
     setStepCompleted(false);
+    setRehabCueCount(0);
+    setRehabShowHint(false);
+    setShowDemoOverlay(false);
+    setShowStepByStep(false);
   }, [clearProgress]);
 
   const handleResume = useCallback(() => setShowResumePrompt(false), []);
   const handleStartOver = useCallback(() => {
     setShowResumePrompt(false);
-    startAssessment(true, false);
-  }, [startAssessment]);
+    resetAssessment();
+    setSelectedMode(null);
+  }, [resetAssessment]);
 
   const isModuleCompletePhase =
     (showCongrats || showOpenEnded) && completedModuleInfo != null;
 
-  // ── Resume prompt ──────────────────────────────────────────────
+  // ── Resume prompt ─────────────────────────────────────────────────────────
   if (showResumePrompt) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-subtle p-4">
@@ -354,20 +536,24 @@ const Assessment: React.FC = () => {
     );
   }
 
-  // ── Module overview ────────────────────────────────────────────
+  // ── Mode selection (only for fresh sessions, before module overview) ───────
+  if (!savedProgressExists && !session && selectedMode === null) {
+    return <ModeSelection onSelect={setSelectedMode} />;
+  }
+
+  // ── Module overview ───────────────────────────────────────────────────────
   if (showModuleOverview) {
     const activeIndex = session ? session.currentModuleIndex : 0;
     const completedCount = eadlModules.filter(m => isModuleCompleted(m.id)).length;
     const isFirst = completedCount === 0;
     const allDone = completedCount === eadlModules.length;
     const activeModule = eadlModules[activeIndex];
-
     const estMins = (steps: number) => `~${steps * 2} min`;
     const totalActiveMins = eadlModules.reduce((s, m) => s + m.steps.length * 2, 0);
+    const modeBadge = MODE_BADGE[activeMode];
 
     return (
       <div className="min-h-screen bg-gradient-subtle">
-        {/* Header */}
         <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md">
           <div className="container flex h-16 items-center justify-between px-4">
             <div className="flex items-center gap-4">
@@ -375,7 +561,12 @@ const Assessment: React.FC = () => {
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="font-semibold text-foreground">eADL Assessment</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-semibold text-foreground">eADL Assessment</h1>
+                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', modeBadge.cls)}>
+                    {modeBadge.label}
+                  </span>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {completedCount} of {eadlModules.length} modules complete
                   {allDone ? '' : ' · 5 more coming soon'}
@@ -386,7 +577,6 @@ const Assessment: React.FC = () => {
         </header>
 
         <main className="container px-4 py-8">
-          {/* Intro */}
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-2">
               {completedCount === 0 ? 'Ready to Begin?' : completedCount === eadlModules.length ? 'All Done!' : 'Module Complete!'}
@@ -404,17 +594,11 @@ const Assessment: React.FC = () => {
             </div>
           </div>
 
-          {/* Module grid */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
-            {/* ── Active / completable modules ── */}
             {eadlModules.map((module, index) => {
               const completed = isModuleCompleted(module.id);
               const remainingCount = eadlModules.filter(m => !isModuleCompleted(m.id)).length;
-              const badgeLabel = completed
-                ? 'Done'
-                : remainingCount === 1
-                ? 'Up Next'
-                : 'Available';
+              const badgeLabel = completed ? 'Done' : remainingCount === 1 ? 'Up Next' : 'Available';
 
               return (
                 <div
@@ -428,43 +612,23 @@ const Assessment: React.FC = () => {
                   )}
                 >
                   <div className="flex items-start gap-4">
-                    <div
-                      className={cn(
-                        'flex h-12 w-12 items-center justify-center rounded-xl flex-shrink-0',
-                        completed ? 'bg-success/10' : 'bg-primary/10 text-2xl',
-                      )}
-                    >
-                      {completed ? (
-                        <CheckCircle2 className="h-6 w-6 text-success" />
-                      ) : (
-                        getModuleIcon(module.icon)
-                      )}
+                    <div className={cn(
+                      'flex h-12 w-12 items-center justify-center rounded-xl flex-shrink-0',
+                      completed ? 'bg-success/10' : 'bg-primary/10 text-2xl',
+                    )}>
+                      {completed ? <CheckCircle2 className="h-6 w-6 text-success" /> : getModuleIcon(module.icon)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Module {index + 1}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-xs font-semibold',
-                            completed ? 'text-success' : 'text-primary',
-                          )}
-                        >
+                        <span className="text-xs font-medium text-muted-foreground">Module {index + 1}</span>
+                        <span className={cn('text-xs font-semibold', completed ? 'text-success' : 'text-primary')}>
                           {badgeLabel}
                         </span>
                       </div>
-                      <h3
-                        className={cn(
-                          'font-semibold',
-                          completed ? 'text-muted-foreground' : 'text-foreground',
-                        )}
-                      >
+                      <h3 className={cn('font-semibold', completed ? 'text-muted-foreground' : 'text-foreground')}>
                         {module.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {module.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{module.description}</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{module.steps.length} tasks</span>
                         <span>·</span>
@@ -476,7 +640,6 @@ const Assessment: React.FC = () => {
               );
             })}
 
-            {/* ── Coming Soon modules ── */}
             {comingSoonModules.map(mod => (
               <div
                 key={mod.name}
@@ -489,39 +652,29 @@ const Assessment: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {mod.category}
-                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">{mod.category}</span>
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                         Coming Soon
                       </span>
                     </div>
                     <h3 className="font-semibold text-foreground">{mod.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {mod.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{mod.description}</p>
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* CTA */}
           <div className="flex flex-col items-center gap-3">
             <Button
               size="lg"
               onClick={allDone ? () => navigate('/dashboard') : handleEnterModule}
               className="gap-2 px-8"
             >
-              {allDone
-                ? 'View Results'
-                : isFirst
-                ? 'Begin Assessment'
-                : `Continue — ${activeModule?.name}`}
+              {allDone ? 'View Results' : isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
               <ArrowRight className="h-5 w-5" />
             </Button>
 
-            {/* Start Over — shown once at least one module has been attempted */}
             {completedCount > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -541,7 +694,7 @@ const Assessment: React.FC = () => {
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => resetAssessment()}
+                      onClick={() => { resetAssessment(); setSelectedMode(null); }}
                     >
                       Yes, start over
                     </AlertDialogAction>
@@ -555,7 +708,7 @@ const Assessment: React.FC = () => {
     );
   }
 
-  // ── Loading guard ──────────────────────────────────────────────
+  // ── Loading guard ─────────────────────────────────────────────────────────
   if (!isModuleCompletePhase && (!session || !currentModule || !currentStep)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -567,25 +720,46 @@ const Assessment: React.FC = () => {
     );
   }
 
-  const headerTitle = isModuleCompletePhase
-    ? completedModuleInfo!.name
-    : currentModule?.name;
-  const headerSubtitle = isModuleCompletePhase
-    ? 'Module Complete'
-    : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
+  const headerTitle = isModuleCompletePhase ? completedModuleInfo!.name : currentModule?.name;
+  const headerSubtitle = isModuleCompletePhase ? 'Module Complete' : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
+  const modeBadge = MODE_BADGE[activeMode];
 
-  // ── Active assessment ──────────────────────────────────────────
+  // Display instruction (reassessment uses alternate if available)
+  const displayInstruction = isReassessMode
+    ? (currentStep!.reassessmentInstruction ?? currentStep!.instruction)
+    : currentStep!.instruction;
+
+  // Display hint text (for verbal cue in rehab, or hint panel in assessment)
+  const displayHint = isReassessMode
+    ? (currentStep!.reassessmentHints?.[0] ?? currentStep!.hints?.[0])
+    : currentStep!.hints?.[0];
+
+  // Step-by-step lookup key
+  const sysKey = currentStep
+    ? currentStep.id + (isReassessMode ? '-r' : '')
+    : '';
+  const stepByStepSteps = STEP_BY_STEP[sysKey] ?? [];
+
+  // ── Active assessment ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background">
+    <div className={cn(
+      'bg-background',
+      isRehabMode && !isModuleCompletePhase ? 'flex flex-col h-screen overflow-hidden' : 'min-h-screen',
+    )}>
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md flex-shrink-0">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="font-semibold text-sm text-foreground leading-tight">{headerTitle}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold text-sm text-foreground leading-tight">{headerTitle}</h1>
+                <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold hidden sm:inline-flex', modeBadge.cls)}>
+                  {modeBadge.label}
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground">{headerSubtitle}</p>
             </div>
           </div>
@@ -611,7 +785,7 @@ const Assessment: React.FC = () => {
 
       {/* Progress bar */}
       {!isModuleCompletePhase && currentModule && (
-        <div className="border-b bg-card px-4 py-2.5">
+        <div className="border-b bg-card px-4 py-2.5 flex-shrink-0">
           <div className="max-w-2xl mx-auto">
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
               <span>Step {stepIndex + 1} of {currentModule.steps.length}</span>
@@ -628,9 +802,11 @@ const Assessment: React.FC = () => {
       )}
 
       {/* Main content */}
-      <main className="max-w-2xl mx-auto px-4 py-5 space-y-5">
+      <main className={cn(
+        'max-w-2xl mx-auto px-4 py-5 space-y-5',
+        isRehabMode && !isModuleCompletePhase && 'flex-1 overflow-y-auto',
+      )}>
         {isModuleCompletePhase ? (
-          /* ── Module complete: congrats + open-ended ── */
           <div className="space-y-5">
             {showCongrats && (
               <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
@@ -642,10 +818,8 @@ const Assessment: React.FC = () => {
                 <h2 className="text-xl font-bold text-foreground mb-2">Task Complete!</h2>
                 <p className="text-muted-foreground mb-4">
                   Great work completing{' '}
-                  <span className="font-semibold text-foreground">
-                    {completedModuleInfo!.name}
-                  </span>
-                  . Please answer the short question below.
+                  <span className="font-semibold text-foreground">{completedModuleInfo!.name}</span>.
+                  Please answer the short question below.
                 </p>
                 <Button
                   size="lg"
@@ -668,22 +842,59 @@ const Assessment: React.FC = () => {
             )}
           </div>
         ) : (
-          /* ── Active step: instruction → simulator → scoring ── */
           <>
             {/* Step instruction */}
             <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
-              <p className="font-medium text-foreground leading-snug">{currentStep!.instruction}</p>
-              {simpleMode && (currentStep!.hints ?? []).length > 0 && (
+              <p className="font-medium text-foreground leading-snug">{displayInstruction}</p>
+              {/* Hints: shown in assessment/reassessment simpleMode, or as verbal cue in rehab */}
+              {!isRehabMode && simpleMode && (displayHint) && (
                 <div className="mt-3 flex items-start gap-2 rounded-lg bg-primary/5 p-3">
                   <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-sm text-muted-foreground">{currentStep!.hints![0]}</p>
+                  <p className="text-sm text-muted-foreground">{displayHint}</p>
                 </div>
               )}
             </div>
 
-            {/* ── Digital Communications simulator (phone) ── */}
+            {/* Rehab: verbal cue banner (shown once cue 1 is given) */}
+            {isRehabMode && rehabCueCount >= 1 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-amber-800">
+                  Verbal Cue: {displayHint ?? 'Review the instructions and try again.'}
+                </p>
+              </div>
+            )}
+
+            {/* Try again flash (rehab misclick) */}
+            {showTryAgain && (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-2.5 text-center">
+                <p className="text-sm font-medium text-orange-700">Try again</p>
+              </div>
+            )}
+
+            {/* Success flash (rehab task complete, 1s) */}
+            {showSuccessFlash && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <p className="text-sm font-semibold text-emerald-700">Step complete!</p>
+              </div>
+            )}
+
+            {/* ── Digital Communications simulator ── */}
             {isDCModule && (
-              <div className="flex justify-center">
+              <div className="relative flex justify-center">
+                {/* Demo overlay */}
+                {showDemoOverlay && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[2.5rem] bg-black/75">
+                    <div className="text-center text-white px-6">
+                      <div className="mb-3 text-4xl">👆</div>
+                      <p className="font-semibold text-lg mb-1">Demonstration</p>
+                      <p className="text-sm text-white/80 max-w-xs">
+                        Watch how to complete the task, then try it yourself.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <PhoneFrame className="w-[320px]">
                   {phoneScreen === 'home' && (
                     <HomeScreen
@@ -692,76 +903,141 @@ const Assessment: React.FC = () => {
                       targetApps={['messages']}
                       simpleMode={simpleMode}
                       highlightTarget="messages"
-                      showHint={showHints}
+                      showHint={effectiveShowHint}
                     />
                   )}
 
-                  {(phoneScreen === 'messages' ||
-                    phoneScreen === 'messages-conversation') && (
+                  {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
                     <MessagesApp
+                      key={simulatorResetKey}
                       onBack={() => setPhoneScreen('home')}
                       onContactSelect={handleContactSelect}
                       onSendMessage={handleSendMessage}
                       onMisclick={() => handleMisclick('targeting')}
-                      targetContact="daughter"
+                      targetContact={targetContactId}
                       simpleMode={simpleMode}
-                      showHint={showHints}
-                      currentStep={
-                        phoneScreen === 'messages-conversation' ? 'conversation' : 'list'
-                      }
+                      showHint={effectiveShowHint}
+                      currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
+                      variant={isReassessMode ? 'reassessment' : undefined}
                     />
                   )}
 
                   {phoneScreen === 'gmail' && (
                     <GmailApp
+                      key={simulatorResetKey}
                       onAction={handleGmailAction}
                       onMisclick={() => handleMisclick('targeting')}
                       simpleMode={simpleMode}
-                      showHint={showHints}
+                      showHint={effectiveShowHint}
+                      variant={isReassessMode ? 'reassessment' : undefined}
                     />
                   )}
 
                   {phoneScreen === 'telehealth' && (
                     <TelehealthCall
+                      key={simulatorResetKey}
                       onAction={handleTelehealthAction}
                       onMisclick={() => handleMisclick('targeting')}
                       simpleMode={simpleMode}
-                      showHint={showHints}
+                      showHint={effectiveShowHint}
+                      variant={isReassessMode ? 'reassessment' : undefined}
                     />
                   )}
                 </PhoneFrame>
               </div>
             )}
 
-            {/* ── EHR simulator (MyChart portal) ── */}
+            {/* ── EHR simulator ── */}
             {isEHRModule && (
-              <div className="rounded-xl border shadow-xl overflow-hidden">
+              <div className="relative rounded-xl border shadow-xl overflow-hidden">
+                {/* Demo overlay */}
+                {showDemoOverlay && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 rounded-xl">
+                    <div className="text-center text-white px-6">
+                      <div className="mb-3 text-4xl">👆</div>
+                      <p className="font-semibold text-lg mb-1">Demonstration</p>
+                      <p className="text-sm text-white/80 max-w-xs">
+                        Watch how to complete the task, then try it yourself.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {/* Step-by-step overlay */}
+                {showStepByStep && stepByStepSteps.length > 0 && (
+                  <div className="absolute inset-0 z-20 flex items-start overflow-y-auto bg-white/97 rounded-xl p-4">
+                    <div className="w-full">
+                      <p className="text-sm font-semibold text-foreground mb-3">Step-by-Step Instructions</p>
+                      <ol className="space-y-2">
+                        {stepByStepSteps.map((step, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                              {i + 1}
+                            </span>
+                            <span className="text-sm text-foreground leading-snug">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  </div>
+                )}
                 <div className="h-[540px]">
                   <MyChartPortal
+                    key={simulatorResetKey}
                     onAction={handleMyChartAction}
                     onMisclick={() => handleMisclick('navigation')}
                     currentStep={currentStep!.id}
                     simpleMode={simpleMode}
-                    showHint={showHints}
+                    showHint={effectiveShowHint}
                     screen={myChartScreen}
+                    variant={isReassessMode ? 'reassessment' : undefined}
                   />
                 </div>
               </div>
             )}
 
-            {/* Scoring panel — cards are locked until the simulation task fires */}
-            <ScoringPanel
-              stepInstruction={currentStep!.instruction}
-              automatedScore={automatedScore}
-              onScoreSubmit={handleStepComplete}
-              hints={currentStep!.hints}
-              simpleMode={simpleMode}
-              allowOverride={true}
-              taskCompleted={stepCompleted}
-            />
+            {/* Step-by-step overlay for DC (phone) — shown as a card below the phone */}
+            {isDCModule && showStepByStep && stepByStepSteps.length > 0 && (
+              <div className="rounded-xl border bg-card p-4">
+                <p className="text-sm font-semibold text-foreground mb-3">Step-by-Step Instructions</p>
+                <ol className="space-y-2">
+                  {stepByStepSteps.map((step, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm text-foreground leading-snug">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Scoring panel — hidden in rehab mode (TherapistPanel handles confirmation) */}
+            {!isRehabMode && (
+              <ScoringPanel
+                stepInstruction={displayInstruction}
+                automatedScore={automatedScore}
+                onScoreSubmit={handleStepComplete}
+                hints={isReassessMode ? currentStep!.reassessmentHints : currentStep!.hints}
+                simpleMode={simpleMode}
+                allowOverride={true}
+                taskCompleted={stepCompleted}
+              />
+            )}
           </>
         )}
       </main>
+
+      {/* Therapist panel — sticky bottom bar in rehab mode */}
+      {isRehabMode && !isModuleCompletePhase && (
+        <TherapistPanel
+          cueCount={rehabCueCount}
+          taskCompleted={stepCompleted}
+          onGiveNextCue={giveNextCue}
+          onConfirmCompleted={handleRehabConfirm}
+          onMarkUnable={handleRehabUnable}
+        />
+      )}
     </div>
   );
 };

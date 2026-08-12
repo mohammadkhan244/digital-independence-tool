@@ -7,6 +7,7 @@ interface TelehealthCallProps {
   onMisclick?: () => void;
   simpleMode?: boolean;
   showHint?: boolean;
+  variant?: 'reassessment';
 }
 
 export const TelehealthCall: React.FC<TelehealthCallProps> = ({
@@ -14,9 +15,16 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
   onMisclick,
   simpleMode = true,
   showHint = false,
+  variant,
 }) => {
+  const isReassessment = variant === 'reassessment';
+  const doctorName = isReassessment ? 'Dr. James Okafor' : 'Dr. Sarah Patel';
+  const doctorInitials = isReassessment ? 'JO' : 'DP';
+  const doctorSubtitle = isReassessment ? 'PM&R · OSUMC' : 'Neurology · OSUMC';
+
   const [isMuted, setIsMuted] = useState(false);
-  const [isCameraOn, setIsCameraOn] = useState(true);
+  // Reassessment: camera starts OFF (task = turn it ON)
+  const [isCameraOn, setIsCameraOn] = useState(!isReassessment);
   const [elapsed, setElapsed] = useState(201); // start at 3:21
 
   useEffect(() => {
@@ -32,7 +40,18 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
 
   const handleMute = () => {
     setIsMuted(prev => !prev);
-    onAction?.('toggle_mute');
+    if (!isReassessment) onAction?.('toggle_mute');
+    else onMisclick?.();
+  };
+
+  const handleCamera = () => {
+    const wasOn = isCameraOn;
+    setIsCameraOn(prev => !prev);
+    if (isReassessment && !wasOn) {
+      onAction?.('toggle_camera');
+    } else {
+      onMisclick?.();
+    }
   };
 
   return (
@@ -41,7 +60,7 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
       <div className="flex items-center justify-between bg-black/60 px-4 py-3 z-10">
         <div>
           <p className="text-white font-semibold text-sm leading-tight">Telehealth Visit</p>
-          <p className="text-gray-300 text-xs">Dr. Sarah Patel</p>
+          <p className="text-gray-300 text-xs">{doctorName}</p>
         </div>
         <div className="rounded-full bg-gray-700/80 px-3 py-1">
           <span className="text-green-400 font-mono text-sm tabular-nums">{formatTime(elapsed)}</span>
@@ -55,10 +74,10 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
 
         <div className="relative text-center z-10">
           <div className="h-28 w-28 mx-auto rounded-full border-4 border-blue-500/60 bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center mb-3 shadow-2xl">
-            <span className="text-3xl font-bold text-white tracking-wide">DP</span>
+            <span className="text-3xl font-bold text-white tracking-wide">{doctorInitials}</span>
           </div>
-          <p className="text-white font-semibold text-base">Dr. Sarah Patel</p>
-          <p className="text-gray-400 text-xs mt-0.5">Neurology · OSUMC</p>
+          <p className="text-white font-semibold text-base">{doctorName}</p>
+          <p className="text-gray-400 text-xs mt-0.5">{doctorSubtitle}</p>
         </div>
 
         {/* Self-view: bottom right */}
@@ -96,10 +115,11 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
 
         {/* Camera */}
         <button
-          onClick={() => { setIsCameraOn(prev => !prev); onMisclick?.(); }}
+          onClick={handleCamera}
           className={cn(
             'flex h-14 w-14 items-center justify-center rounded-full transition-colors',
             isCameraOn ? 'bg-gray-600' : 'bg-red-600',
+            isReassessment && showHint && !isCameraOn && 'ring-4 ring-primary ring-offset-2 ring-offset-gray-800',
           )}
         >
           {isCameraOn ? (
@@ -126,10 +146,18 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
         </button>
       </div>
 
-      {simpleMode && !isMuted && (
+      {simpleMode && !isReassessment && !isMuted && (
         <div className="bg-primary px-3 py-2 text-center">
           <p className="text-xs text-primary-foreground font-medium">
             Tap the microphone button to mute yourself
+          </p>
+        </div>
+      )}
+
+      {simpleMode && isReassessment && !isCameraOn && (
+        <div className="bg-primary px-3 py-2 text-center">
+          <p className="text-xs text-primary-foreground font-medium">
+            Tap the camera button to turn on your video
           </p>
         </div>
       )}

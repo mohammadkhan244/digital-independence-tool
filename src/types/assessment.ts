@@ -2,6 +2,8 @@
 
 export type Score = 0 | 1 | 2 | 'N/A';
 
+export type AssessmentMode = 'assessment' | 'rehabilitation' | 'reassessment';
+
 // 0-3 cue hierarchy for observer-rated step completion
 export type CueLevel = 0 | 1 | 2 | 3;
 
@@ -16,8 +18,10 @@ export type DifficultyMode = 'simple' | 'complex';
 
 export interface TaskStep {
   id: string;
-  shortLabel?: string;        // brief display name for dashboard tables
+  shortLabel?: string;
   instruction: string;
+  reassessmentInstruction?: string;
+  reassessmentHints?: string[];
   targetElement?: string;
   expectedAction: string;
   hints?: string[];
@@ -86,6 +90,7 @@ export interface AssessmentSession {
   difficultyMode: DifficultyMode;
   adaptiveModeEnabled: boolean;
   eyeTrackingEnabled: boolean;
+  assessmentMode?: AssessmentMode;
   moduleResults: ModuleResult[];
   version: string;
 }

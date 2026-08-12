@@ -7,6 +7,7 @@ import {
   CueLevel,
   ErrorType,
   DifficultyMode,
+  AssessmentMode,
   EyeTrackingEvent,
 } from '@/types/assessment';
 import { eadlModules } from '@/data/modules';
@@ -53,7 +54,7 @@ export const useAssessment = () => {
   const stepErrors = useRef<ErrorType[]>([]);
 
   // Initialize a new assessment session
-  const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0) => {
+  const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0, assessmentMode: AssessmentMode = 'assessment') => {
     clearProgress();
     clearResults();
     const newSession: AssessmentSession = {
@@ -65,6 +66,7 @@ export const useAssessment = () => {
       difficultyMode: 'simple',
       adaptiveModeEnabled: adaptiveMode,
       eyeTrackingEnabled: eyeTracking,
+      assessmentMode,
       moduleResults: [],
       version: ASSESSMENT_VERSION,
     };

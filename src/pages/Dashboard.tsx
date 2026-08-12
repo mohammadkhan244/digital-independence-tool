@@ -194,8 +194,14 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">Difficulty Mode</div>
-              <div className="text-sm capitalize">{session.difficultyMode}</div>
+              <div className="text-sm text-muted-foreground">Assessment Mode</div>
+              <div className="text-sm capitalize">
+                {session.assessmentMode === 'rehabilitation'
+                  ? 'Rehabilitation'
+                  : session.assessmentMode === 'reassessment'
+                  ? 'Reassessment'
+                  : 'Assessment'}
+              </div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Version</div>

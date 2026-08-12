@@ -19,6 +19,13 @@ const contacts: Contact[] = [
   { id: 'bank', name: 'SafeBank Alerts', lastMessage: 'Your balance is $1,234.56', time: 'Mon' },
 ];
 
+const contactsReassessment: Contact[] = [
+  { id: 'son', name: 'Michael (Son)', lastMessage: 'Let me know if you need anything!', time: '8:45 AM', unread: false },
+  { id: 'dr-smith', name: 'Dr. Smith', lastMessage: 'See you at 2pm tomorrow!', time: '10:30 AM', unread: false },
+  { id: 'pharmacy', name: 'CVS Pharmacy', lastMessage: 'Your prescription is ready', time: 'Yesterday' },
+  { id: 'family', name: 'Family Group', lastMessage: 'Mom: Don\'t forget dinner Sunday', time: 'Yesterday' },
+];
+
 interface MessagesAppProps {
   onBack?: () => void;
   onContactSelect?: (contactId: string) => void;
@@ -28,6 +35,7 @@ interface MessagesAppProps {
   simpleMode?: boolean;
   showHint?: boolean;
   currentStep?: 'list' | 'conversation' | 'compose';
+  variant?: 'reassessment';
 }
 
 export const MessagesApp: React.FC<MessagesAppProps> = ({
@@ -39,10 +47,13 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
   simpleMode = true,
   showHint = false,
   currentStep = 'list',
+  variant,
 }) => {
+  const isReassessment = variant === 'reassessment';
+  const contactList = isReassessment ? contactsReassessment : contacts;
   const [view, setView] = useState<'list' | 'conversation'>(currentStep === 'conversation' ? 'conversation' : 'list');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(
-    currentStep === 'conversation' ? contacts.find(c => c.id === targetContact) || null : null
+    currentStep === 'conversation' ? contactList.find(c => c.id === targetContact) || null : null
   );
   const [messageText, setMessageText] = useState('');
 
@@ -63,7 +74,7 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
     }
   };
 
-  const displayContacts = simpleMode ? contacts.slice(0, 4) : contacts;
+  const displayContacts = simpleMode ? contactList.slice(0, 4) : contactList;
 
   if (view === 'conversation' && selectedContact) {
     return (
@@ -87,7 +98,7 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {selectedContact?.id === 'daughter' ? (
+          {(selectedContact?.id === 'daughter' || selectedContact?.id === 'son') ? (
             <>
               <div className="flex justify-end">
                 <div className="max-w-[75%] rounded-2xl rounded-br-md bg-blue-500 px-4 py-2">
@@ -151,7 +162,9 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 placeholder={simpleMode
-                    ? selectedContact?.id === 'daughter'
+                    ? selectedContact?.id === 'son'
+                      ? 'Type: Yes, I received the prescription'
+                      : selectedContact?.id === 'daughter'
                       ? 'Type: My appointment is July 18 at 2:30 PM'
                       : 'Type: Confirming my appointment'
                     : 'Message'}
@@ -275,7 +288,9 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
       {simpleMode && (
         <div className="border-t bg-blue-50 p-3 text-center">
           <p className="text-sm text-blue-700">
-            {targetContact === 'daughter'
+            {targetContact === 'son'
+              ? 'Tap on "Michael (Son)" to open the conversation'
+              : targetContact === 'daughter'
               ? 'Tap on "Emma (Daughter)" to open the conversation'
               : 'Tap on "Dr. Smith" to open the conversation'}
           </p>
