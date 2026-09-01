@@ -33,6 +33,7 @@ export function computeAnalytics(session: AssessmentSession | null): Performance
   let abandonedSteps = 0;
   let compositeScore = 0;
   let maxPossibleScore = 0;
+  let totalPatientOverrides = 0;
   const errorProfile: Record<ErrorType, number> = {
     navigation: 0, targeting: 0, sequencing: 0, attention: 0, abandonment: 0,
   };
@@ -46,6 +47,7 @@ export function computeAnalytics(session: AssessmentSession | null): Performance
       totalMisclicks += step.misclicks;
       totalBacktracks += step.backtracks;
       if (step.abandoned) abandonedSteps++;
+      if (step.patientOverrideUsed) totalPatientOverrides++;
       step.errors.forEach(e => errorProfile[e]++);
       if (step.score !== 'N/A') {
         compositeScore += step.cueLevel ?? (step.score as number);
@@ -62,6 +64,7 @@ export function computeAnalytics(session: AssessmentSession | null): Performance
         cueLevel: cl,
         cueLabel: step.cueLabel ?? null,
         completed: cl !== null ? cl > 0 : step.score !== 0,
+        patientOverrideUsed: step.patientOverrideUsed ?? false,
       };
     });
 
@@ -89,6 +92,7 @@ export function computeAnalytics(session: AssessmentSession | null): Performance
     compositeScore,
     maxPossibleScore,
     scorePercentage: maxPossibleScore > 0 ? (compositeScore / maxPossibleScore) * 100 : 0,
+    totalPatientOverrides,
     moduleScores,
   };
 }
@@ -123,6 +127,7 @@ export const useAssessment = () => {
   const stepMisclicks = useRef(0);
   const stepBacktracks = useRef(0);
   const stepErrors = useRef<ErrorType[]>([]);
+  const [currentStepMisclicks, setCurrentStepMisclicks] = useState(0);
 
   // Initialize a new assessment session
   const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0, assessmentMode: AssessmentMode = 'assessment') => {
@@ -174,6 +179,7 @@ export const useAssessment = () => {
   // Record a misclick
   const recordMisclick = useCallback((errorType?: ErrorType) => {
     stepMisclicks.current += 1;
+    setCurrentStepMisclicks(prev => prev + 1);
     if (errorType) {
       stepErrors.current.push(errorType);
     }
@@ -185,7 +191,7 @@ export const useAssessment = () => {
   }, []);
 
   // Complete the current step
-  const completeStep = useCallback((automatedScore: Score, manualOverride?: Score, cueLevel?: CueLevel, cueLabel?: string) => {
+  const completeStep = useCallback((automatedScore: Score, manualOverride?: Score, cueLevel?: CueLevel, cueLabel?: string, patientOverrideUsed?: boolean) => {
     if (!session || !currentStepStartTime) return;
 
     const currentModule = eadlModules[session.currentModuleIndex];
@@ -210,6 +216,7 @@ export const useAssessment = () => {
       timestamp: Date.now(),
       cueLevel,
       cueLabel,
+      patientOverrideUsed: patientOverrideUsed ?? false,
     };
 
     // Update or create module result
@@ -326,6 +333,7 @@ export const useAssessment = () => {
     stepMisclicks.current = 0;
     stepBacktracks.current = 0;
     stepErrors.current = [];
+    setCurrentStepMisclicks(0);
 
     if (isLastStep && isLastModule) {
       clearProgress();
@@ -420,6 +428,7 @@ export const useAssessment = () => {
     stepMisclicks.current = 0;
     stepBacktracks.current = 0;
     stepErrors.current = [];
+    setCurrentStepMisclicks(0);
   }, []);
 
   // Reset in-progress state for a new session; completed history in eadl_all_sessions is never touched
@@ -433,6 +442,7 @@ export const useAssessment = () => {
     stepMisclicks.current = 0;
     stepBacktracks.current = 0;
     stepErrors.current = [];
+    setCurrentStepMisclicks(0);
     eyeTrackingEvents.current = [];
   }, []);
 
@@ -496,6 +506,7 @@ export const useAssessment = () => {
     isRunning,
     hasLoaded,
     savedProgressExists,
+    currentStepMisclicks,
     clearProgress,
     resetAssessment,
     startAssessment,

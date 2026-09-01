@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Trophy,
   Info,
+  SkipForward,
 } from 'lucide-react';
 
 interface AnalyticsDashboardProps {
@@ -137,7 +138,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print-no-break">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print-no-break">
         <div className="analytics-card">
           <div className="flex items-center gap-3 mb-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -196,6 +197,21 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <div className="analytics-label">Total Errors</div>
           <div className="text-xs text-muted-foreground mt-1">
             all error types
+          </div>
+        </div>
+
+        <div className="analytics-card">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
+              <SkipForward className="h-5 w-5 text-orange-500" />
+            </div>
+          </div>
+          <div className="analytics-value text-orange-500">
+            {analytics.totalPatientOverrides ?? 0}
+          </div>
+          <div className="analytics-label">Overrides Used</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            tasks skipped
           </div>
         </div>
       </div>
@@ -366,7 +382,15 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                         {module.cueBreakdown.map(step => (
                           <tr key={step.stepId} className="border-b last:border-0">
                             <td className="p-3 text-muted-foreground">
-                              {step.stepLabel}
+                              <span className="flex items-center gap-2 flex-wrap">
+                                {step.stepLabel}
+                                {step.patientOverrideUsed && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:text-orange-300">
+                                    <SkipForward className="h-3 w-3" />
+                                    Override
+                                  </span>
+                                )}
+                              </span>
                             </td>
                             <td className="p-3 text-center">
                               {step.cueLevel !== null ? (

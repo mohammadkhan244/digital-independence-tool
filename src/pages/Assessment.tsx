@@ -260,7 +260,10 @@ const Assessment: React.FC = () => {
     setOpenEndedResponse,
     setDifficultyMode,
     getCurrentContext,
+    currentStepMisclicks,
   } = useAssessment();
+
+  const OVERRIDE_THRESHOLD = 5;
 
   // ── Mode selection (persists between ModeSelection and module entry) ──
   const [selectedMode, setSelectedMode] = useState<AssessmentMode | null>(null);
@@ -442,6 +445,37 @@ const Assessment: React.FC = () => {
   const handleRehabUnable = useCallback(() => {
     handleStepComplete(0, 0 as CueLevel, 'Unable');
   }, [handleStepComplete]);
+
+  // ── Patient override (skip task after 5+ misclicks) ──────────────────────
+  const handlePatientOverride = useCallback(() => {
+    const isLastStep = currentModule != null && stepIndex >= currentModule.steps.length - 1;
+    if (isLastStep && currentModule) {
+      setCompletedModuleInfo({
+        name: currentModule.name,
+        question: currentModule.openEndedQuestion,
+        moduleId: currentModule.id,
+      });
+    }
+    setAutomatedScore(null);
+    setStepCompleted(false);
+    const updatedSession = completeStep(0, 0, 0, 'Unable', true);
+    if (isLastStep) {
+      setShowCongrats(true);
+      if (updatedSession?.endTime) {
+        setIsAssessmentComplete(true);
+      }
+    }
+  }, [completeStep, currentModule, stepIndex]);
+
+  const nextStepInstruction = (() => {
+    if (!session || !currentModule) return null;
+    const nextIdx = stepIndex + 1;
+    if (nextIdx < currentModule.steps.length) {
+      return currentModule.steps[nextIdx].instruction;
+    }
+    const nextMod = eadlModules[session.currentModuleIndex + 1];
+    return nextMod?.steps[0]?.instruction ?? null;
+  })();
 
   // ── DC SMS handlers ──────────────────────────────────────────────────────
   const handleAppTap = useCallback(
@@ -1074,15 +1108,39 @@ const Assessment: React.FC = () => {
 
             {/* Scoring panel — hidden in rehab mode (TherapistPanel handles confirmation) */}
             {!isRehabMode && (
-              <ScoringPanel
-                stepInstruction={displayInstruction}
-                automatedScore={automatedScore}
-                onScoreSubmit={handleStepComplete}
-                hints={isReassessMode ? currentStep?.reassessmentHints : currentStep?.hints}
-                simpleMode={simpleMode}
-                allowOverride={true}
-                taskCompleted={stepCompleted}
-              />
+              currentStepMisclicks >= OVERRIDE_THRESHOLD && !stepCompleted ? (
+                <div className="p-4 border-t bg-background">
+                  <div className="rounded-xl border-2 border-orange-400 bg-orange-50 dark:bg-orange-950/30 p-5 flex flex-col items-center gap-3 text-center">
+                    <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                      Having trouble with this task?
+                    </p>
+                    {nextStepInstruction && (
+                      <p className="text-xs text-orange-700 dark:text-orange-400">
+                        Next task: <span className="font-medium">{nextStepInstruction}</span>
+                      </p>
+                    )}
+                    <button
+                      onClick={handlePatientOverride}
+                      className="w-full rounded-lg bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold text-lg py-3 px-6 transition-colors"
+                    >
+                      OVERRIDE
+                    </button>
+                    <p className="text-xs text-muted-foreground">
+                      Press OVERRIDE to skip this task and continue to the next step.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ScoringPanel
+                  stepInstruction={displayInstruction}
+                  automatedScore={automatedScore}
+                  onScoreSubmit={handleStepComplete}
+                  hints={isReassessMode ? currentStep?.reassessmentHints : currentStep?.hints}
+                  simpleMode={simpleMode}
+                  allowOverride={true}
+                  taskCompleted={stepCompleted}
+                />
+              )
             )}
           </>
         )}

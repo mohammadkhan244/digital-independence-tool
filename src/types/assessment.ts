@@ -43,6 +43,7 @@ export interface StepResult {
   // Cue tracking — undefined for sessions recorded before this feature
   cueLevel?: CueLevel;
   cueLabel?: string;
+  patientOverrideUsed?: boolean;
 }
 
 export interface ModuleDefinition {
@@ -105,6 +106,7 @@ export interface PerformanceAnalytics {
   compositeScore: number;
   maxPossibleScore: number;
   scorePercentage: number;
+  totalPatientOverrides: number;
   moduleScores: Array<{
     moduleId: string;
     moduleName: string;
@@ -117,6 +119,7 @@ export interface PerformanceAnalytics {
       cueLevel: CueLevel | null;
       cueLabel: string | null;
       completed: boolean;
+      patientOverrideUsed: boolean;
     }>;
   }>;
 }
