@@ -5,6 +5,7 @@ import { eadlModules, getModuleIcon } from '@/data/modules';
 import { ModuleCard } from '@/components/assessment/ModuleCard';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { DemoSection } from '@/components/landing/DemoSection';
 import { 
   Play, 
   Settings, 
@@ -81,6 +82,19 @@ const Index: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Demo Section */}
+      <section className="container px-4 py-12 border-b">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-bold text-foreground mb-2">See It in Action</h2>
+            <p className="text-muted-foreground text-sm">
+              Try one task from the assessment — no sign-up, no commitment.
+            </p>
+          </div>
+          <DemoSection />
+        </div>
+      </section>
 
       {/* Features Grid */}
       <section className="container px-4 py-12">
