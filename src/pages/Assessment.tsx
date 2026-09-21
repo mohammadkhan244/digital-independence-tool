@@ -380,13 +380,12 @@ const Assessment: React.FC = () => {
     }
   }, [stepCompleted, isRehabMode]);
 
-  // ── Auto-speak hint on step start (assessment/reassessment in simple mode) ─
+  // ── Cancel any ongoing speech when component unmounts ─────────────────────
   useEffect(() => {
-    if (!isRehabMode && simpleMode && displayHint) {
-      speak(displayHint);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep?.id, simpleMode]);
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+  }, []);
 
   // ── Reset sim to current step's initial state ─────────────────────────────
   const resetCurrentSim = useCallback(() => {
