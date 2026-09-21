@@ -213,7 +213,7 @@ const DemoPointer: React.FC<DemoPointerProps> = ({ stepKey, onDone }) => {
 
   return (
     // Container blocks accidental taps during the demo
-    <div className="absolute inset-0 z-20" style={{ cursor: 'default' }}>
+    <div className="absolute inset-0 z-[60]" style={{ cursor: 'default' }}>
       {/* Pulse ring at target during pause + tap */}
       {(phase === 2 || phase === 3) && (
         <div
@@ -1064,7 +1064,7 @@ const Assessment: React.FC = () => {
 
             {/* ── Digital Communications simulator ── */}
             {isDCModule && (
-              <div className="relative flex justify-center">
+              <div className="relative flex justify-center isolate">
                 {showDemoOverlay && (
                   <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
                 )}
@@ -1122,7 +1122,7 @@ const Assessment: React.FC = () => {
 
             {/* ── EHR simulator ── */}
             {isEHRModule && (
-              <div className="relative rounded-xl border shadow-xl overflow-hidden">
+              <div className="relative rounded-xl border shadow-xl overflow-hidden isolate">
                 {showDemoOverlay && (
                   <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
                 )}
