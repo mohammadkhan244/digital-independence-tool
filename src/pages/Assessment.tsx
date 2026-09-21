@@ -35,6 +35,7 @@ import {
   ArrowRight,
   AlertTriangle,
   Clock,
+  Volume2,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType, CueLevel, AssessmentMode } from '@/types/assessment';
 
@@ -160,6 +161,15 @@ const MODE_BADGE: Record<AssessmentMode, { label: string; cls: string }> = {
   rehabilitation:{ label: 'Rehab Mode',        cls: 'bg-chart-1/10 text-chart-1' },
   reassessment:  { label: 'Reassessment Mode', cls: 'bg-chart-2/10 text-chart-2' },
 };
+
+function speak(text: string): void {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.9;
+  utter.pitch = 1.0;
+  window.speechSynthesis.speak(utter);
+}
 
 // Demo animation: target [x%, y%] within the simulator wrapper div
 const DEMO_TARGETS: Record<string, [number, number]> = {
@@ -363,6 +373,14 @@ const Assessment: React.FC = () => {
     }
   }, [stepCompleted, isRehabMode]);
 
+  // ── Auto-speak hint on step start (assessment/reassessment in simple mode) ─
+  useEffect(() => {
+    if (!isRehabMode && simpleMode && displayHint) {
+      speak(displayHint);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep?.id, simpleMode]);
+
   // ── Reset sim to current step's initial state ─────────────────────────────
   const resetCurrentSim = useCallback(() => {
     if (!currentModule || !currentStep) return;
@@ -425,7 +443,9 @@ const Assessment: React.FC = () => {
     const next = rehabCueCount + 1;
     setRehabCueCount(next);
 
-    if (next === 2) {
+    if (next === 1) {
+      speak(displayHint ?? 'Review the instructions and try again.');
+    } else if (next === 2) {
       setRehabShowHint(true);
     } else if (next === 3) {
       // DemoPointer handles its own timing and calls handleDemoDone when done
@@ -433,7 +453,7 @@ const Assessment: React.FC = () => {
     } else if (next === 4) {
       setShowStepByStep(true);
     }
-  }, [rehabCueCount]);
+  }, [rehabCueCount, displayHint]);
 
   // ── Rehab confirmation ───────────────────────────────────────────────────
   const handleRehabConfirm = useCallback(() => {
@@ -913,20 +933,40 @@ const Assessment: React.FC = () => {
         </div>
       </header>
 
-      {/* Progress bar */}
-      {!isModuleCompletePhase && currentModule && (
-        <div className="border-b bg-card px-4 py-2.5 flex-shrink-0">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-              <span>Step {stepIndex + 1} of {currentModule.steps.length}</span>
-              <span>{Math.round(((stepIndex + 1) / currentModule.steps.length) * 100)}%</span>
+      {/* Sticky progress + instruction block */}
+      {!isModuleCompletePhase && currentModule && currentStep && (
+        <div className="sticky top-14 z-30 flex-shrink-0 bg-card/95 backdrop-blur-sm border-b shadow-md">
+          {/* Progress bar */}
+          <div className="border-b px-4 py-2">
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span>Step {stepIndex + 1} of {currentModule.steps.length}</span>
+                <span>{Math.round(((stepIndex + 1) / currentModule.steps.length) * 100)}%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${((stepIndex + 1) / currentModule.steps.length) * 100}%` }}
+                />
+              </div>
             </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${((stepIndex + 1) / currentModule.steps.length) * 100}%` }}
-              />
-            </div>
+          </div>
+          {/* Instruction card */}
+          <div className="px-4 py-2.5 sm:py-3.5 max-w-2xl mx-auto">
+            <p className="font-medium text-foreground text-sm sm:text-base leading-snug">{displayInstruction}</p>
+            {!isRehabMode && simpleMode && displayHint && (
+              <div className="mt-2 flex items-start gap-2 rounded-lg bg-primary/5 px-2.5 py-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-muted-foreground flex-1 leading-snug">{displayHint}</p>
+                <button
+                  onClick={() => speak(displayHint)}
+                  className="shrink-0 p-0.5 text-primary/60 hover:text-primary transition-colors"
+                  title="Read hint aloud"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -973,25 +1013,20 @@ const Assessment: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Step instruction */}
-            <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
-              <p className="font-medium text-foreground leading-snug">{displayInstruction}</p>
-              {/* Hints: shown in assessment/reassessment simpleMode, or as verbal cue in rehab */}
-              {!isRehabMode && simpleMode && (displayHint) && (
-                <div className="mt-3 flex items-start gap-2 rounded-lg bg-primary/5 p-3">
-                  <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-sm text-muted-foreground">{displayHint}</p>
-                </div>
-              )}
-            </div>
-
             {/* Rehab: verbal cue banner (shown once cue 1 is given) */}
             {isRehabMode && rehabCueCount >= 1 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-sm font-medium text-amber-800">
+                <p className="text-sm font-medium text-amber-800 flex-1">
                   Verbal Cue: {displayHint ?? 'Review the instructions and try again.'}
                 </p>
+                <button
+                  onClick={() => speak(displayHint ?? 'Review the instructions and try again.')}
+                  className="shrink-0 p-1 text-amber-600 hover:text-amber-800 transition-colors"
+                  title="Read cue aloud"
+                >
+                  <Volume2 className="h-4 w-4" />
+                </button>
               </div>
             )}
 
