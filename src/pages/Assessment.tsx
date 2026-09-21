@@ -326,6 +326,13 @@ const Assessment: React.FC = () => {
   // Target contact for SMS: 'son' in reassessment, 'daughter' otherwise
   const targetContactId = isReassessMode ? 'son' : 'daughter';
 
+  // Derived display strings — declared early so hooks can safely close over them
+  const displayHint = currentStep
+    ? (isReassessMode
+        ? (currentStep.reassessmentHints?.[0] ?? currentStep.hints?.[0])
+        : currentStep.hints?.[0])
+    : undefined;
+
   // ── Resume prompt ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isRunning && !session && savedProgressExists) {
@@ -878,12 +885,6 @@ const Assessment: React.FC = () => {
         ? (currentStep.reassessmentInstruction ?? currentStep.instruction)
         : currentStep.instruction)
     : '';
-
-  const displayHint = currentStep
-    ? (isReassessMode
-        ? (currentStep.reassessmentHints?.[0] ?? currentStep.hints?.[0])
-        : currentStep.hints?.[0])
-    : undefined;
 
   const sysKey = currentStep
     ? currentStep.id + (isReassessMode ? '-r' : '')
