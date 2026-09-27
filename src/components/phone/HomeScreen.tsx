@@ -150,7 +150,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Dock */}
       <div className="mt-auto">
-        <div className="flex justify-center gap-6 rounded-3xl bg-white/20 backdrop-blur-md p-3">
+        <div className={cn("flex justify-center rounded-3xl bg-white/20 backdrop-blur-md", simpleMode ? "gap-3 p-2" : "gap-6 p-3")}>
           {['phone', 'messages', 'mail', 'music'].map((appId) => {
             const app = allApps.find(a => a.id === appId)!;
             const isTarget = targetApps.includes(app.id);

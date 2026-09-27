@@ -20,6 +20,7 @@ import {
   Trophy,
   Info,
   SkipForward,
+  ChevronDown,
 } from 'lucide-react';
 
 interface AnalyticsDashboardProps {
@@ -102,6 +103,26 @@ const getCueSummary = (
   return 'Completed most tasks with minimal cues';
 };
 
+function formatWrongScreen(name: string): string {
+  const map: Record<string, string> = {
+    phone: 'Phone App', mail: 'Mail App', settings: 'Settings', music: 'Music',
+    whatsapp: 'WhatsApp', maps: 'Maps', calendar: 'Calendar', camera: 'Camera',
+    streamtv: 'StreamTV', reminders: 'Reminders', homesafe: 'HomeSafe',
+    appstore: 'App Store', weather: 'Weather', books: 'Books', games: 'Games',
+    news: 'News', podcasts: 'Podcasts', contacts: 'Contacts',
+    calculator: 'Calculator', compass: 'Compass', quickshop: 'QuickShop',
+  };
+  if (map[name]) return map[name];
+  if (name.startsWith('mail-')) return name.slice(5) + ' (Mail)';
+  if (name.startsWith('messages-')) return name.slice(9);
+  if (name.startsWith('telehealth-')) return name.slice(11).replace(/-/g, ' ');
+  if (name.startsWith('mychart-')) {
+    const rest = name.slice(8);
+    return rest.charAt(0).toUpperCase() + rest.slice(1);
+  }
+  return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // Color class per cue level for the breakdown badge
 const cueLevelClass = (level: CueLevel): string => {
   if (level === 3) return 'bg-success/10 text-success';
@@ -113,6 +134,8 @@ const cueLevelClass = (level: CueLevel): string => {
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   analytics,
 }) => {
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
+
   const formatTime = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
@@ -426,12 +449,26 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                               )}
                             </td>
                             <td className="p-3 text-center">
-                              <span className={cn(
-                                'text-sm font-medium',
-                                (step.wrongScreensCount ?? 0) > 0 ? 'text-chart-4' : 'text-muted-foreground',
-                              )}>
-                                {step.wrongScreensCount ?? 0}
-                              </span>
+                              {(step.wrongScreensCount ?? 0) > 0 ? (
+                                <div className="flex flex-col items-center">
+                                  <button
+                                    onClick={() => setExpandedStep(prev => prev === step.stepId ? null : step.stepId)}
+                                    className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-xs font-medium text-chart-4 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                  >
+                                    {step.wrongScreensCount} screen{step.wrongScreensCount !== 1 ? 's' : ''}
+                                    <ChevronDown className={cn('h-3 w-3 transition-transform duration-150', expandedStep === step.stepId && 'rotate-180')} />
+                                  </button>
+                                  {expandedStep === step.stepId && (
+                                    <ul className="mt-1.5 space-y-0.5 text-left">
+                                      {(step.wrongScreensVisited ?? []).map((s, i) => (
+                                        <li key={i} className="text-xs text-muted-foreground">· {formatWrongScreen(s)}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">—</span>
+                              )}
                             </td>
                           </tr>
                         ))}

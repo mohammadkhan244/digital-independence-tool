@@ -66,6 +66,7 @@ export function computeAnalytics(session: AssessmentSession | null): Performance
         completed: cl !== null ? cl > 0 : step.score !== 0,
         patientOverrideUsed: step.patientOverrideUsed ?? false,
         wrongScreensCount: step.wrongScreensVisited?.length ?? 0,
+        wrongScreensVisited: step.wrongScreensVisited ?? [],
       };
     });
 

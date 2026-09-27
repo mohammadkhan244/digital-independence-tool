@@ -123,6 +123,7 @@ export interface PerformanceAnalytics {
       completed: boolean;
       patientOverrideUsed: boolean;
       wrongScreensCount: number;
+      wrongScreensVisited: string[];
     }>;
   }>;
 }
