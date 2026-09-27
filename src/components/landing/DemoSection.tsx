@@ -5,6 +5,14 @@ import { PerformanceAnalytics, CueLevel } from '@/types/assessment';
 import { PhoneFrame } from '@/components/phone/PhoneFrame';
 import { HomeScreen } from '@/components/phone/HomeScreen';
 import { MessagesApp } from '@/components/phone/MessagesApp';
+import { GmailApp } from '@/components/phone/GmailApp';
+import {
+  PhoneRecentsScreen,
+  SettingsScreen,
+  MusicScreen,
+  GenericAppLaunchScreen,
+  WrongAppScreen,
+} from '@/components/phone/WrongAppScreens';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +22,7 @@ import {
   Download,
   CheckCircle2,
   SkipForward,
+  ChevronLeft,
 } from 'lucide-react';
 
 type DemoPhase = 'idle' | 'task' | 'results';
@@ -26,6 +35,7 @@ function buildAnalytics(
   targetErrors: number,
   elapsed: number,
   usedOverride: boolean,
+  wrongScreenNames: string[],
 ): PerformanceAnalytics {
   const totalMisclicks = navErrors + targetErrors;
 
@@ -33,6 +43,10 @@ function buildAnalytics(
   let cueLabel: string;
   if (usedOverride) {
     cueLevel = 0; cueLabel = 'Unable';
+  } else if (navErrors > 0) {
+    // Visited wrong apps → at most Verbal/Visual Cue (mirrors assessment scoring)
+    cueLevel = totalMisclicks <= 3 ? 2 : 1;
+    cueLabel = totalMisclicks <= 3 ? 'Verbal/Visual Cue' : 'Demonstration';
   } else if (totalMisclicks === 0) {
     cueLevel = 3; cueLabel = 'Independent';
   } else if (totalMisclicks <= 2) {
@@ -73,6 +87,8 @@ function buildAnalytics(
             cueLabel,
             completed: !usedOverride,
             patientOverrideUsed: usedOverride,
+            wrongScreensCount: navErrors,
+            wrongScreensVisited: wrongScreenNames,
           },
         ],
       },
@@ -84,8 +100,10 @@ export const DemoSection: React.FC = () => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<DemoPhase>('idle');
   const [phoneScreen, setPhoneScreen] = useState<DemoPhone>('home');
+  const [wrongAppScreen, setWrongAppScreen] = useState<string | null>(null);
   const [navErrors, setNavErrors] = useState(0);
   const [targetErrors, setTargetErrors] = useState(0);
+  const [wrongScreenNames, setWrongScreenNames] = useState<string[]>([]);
   const [demoAnalytics, setDemoAnalytics] = useState<PerformanceAnalytics | null>(null);
   const startTimeRef = useRef<number>(0);
 
@@ -95,35 +113,50 @@ export const DemoSection: React.FC = () => {
     startTimeRef.current = Date.now();
     setPhase('task');
     setPhoneScreen('home');
+    setWrongAppScreen(null);
     setNavErrors(0);
     setTargetErrors(0);
+    setWrongScreenNames([]);
     setDemoAnalytics(null);
   };
 
   const handleReset = () => {
     setPhase('idle');
     setPhoneScreen('home');
+    setWrongAppScreen(null);
     setNavErrors(0);
     setTargetErrors(0);
+    setWrongScreenNames([]);
     setDemoAnalytics(null);
   };
 
   const finishDemo = (usedOverride: boolean) => {
     const elapsed = Date.now() - startTimeRef.current;
-    setDemoAnalytics(buildAnalytics(navErrors, targetErrors, elapsed, usedOverride));
+    setDemoAnalytics(buildAnalytics(navErrors, targetErrors, elapsed, usedOverride, wrongScreenNames));
     setPhase('results');
+  };
+
+  const handleWrongAppTap = (appId: string) => {
+    setWrongAppScreen(appId);
+    setNavErrors(p => p + 1);
+    setWrongScreenNames(prev => [...prev, `phone-${appId}`]);
+  };
+
+  const handleGoBackFromWrongApp = () => {
+    setWrongAppScreen(null);
   };
 
   const exportCSV = () => {
     if (!demoAnalytics) return;
     const step = demoAnalytics.moduleScores[0].cueBreakdown[0];
-    const headers = 'Module,Step,CueLevel,CueLabel,Misclicks,TimeToCompletion_ms,Override';
+    const headers = 'Module,Step,CueLevel,CueLabel,Misclicks,WrongScreens,TimeToCompletion_ms,Override';
     const row = [
       'Digital Communications',
       'Send text message',
       step.cueLevel,
       step.cueLabel,
       demoAnalytics.totalMisclicks,
+      step.wrongScreensVisited?.join(';') ?? '',
       demoAnalytics.totalAssessmentTime,
       step.patientOverrideUsed,
     ].join(',');
@@ -163,7 +196,6 @@ export const DemoSection: React.FC = () => {
     const usedOverride = demoAnalytics.totalPatientOverrides > 0;
     return (
       <div className="space-y-5">
-        {/* Result header */}
         <div className={cn(
           'rounded-xl border p-5 text-center',
           usedOverride
@@ -185,10 +217,8 @@ export const DemoSection: React.FC = () => {
           )}
         </div>
 
-        {/* Dashboard — same component used in the real dashboard */}
         <AnalyticsDashboard analytics={demoAnalytics} />
 
-        {/* Action row */}
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportCSV} className="gap-2 flex-1 sm:flex-none min-h-[44px]">
@@ -226,8 +256,29 @@ export const DemoSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Misclick badge */}
-      {misclickCount > 0 && (
+      {/* Wrong-app banner — visible above phone when patient opened the wrong app */}
+      {wrongAppScreen && (
+        <div className="space-y-1.5">
+          <button
+            onClick={handleGoBackFromWrongApp}
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-orange-500 hover:bg-orange-600 active:bg-orange-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Wrong app — tap to return to task
+          </button>
+          {misclickCount >= OVERRIDE_THRESHOLD && (
+            <button
+              onClick={() => finishDemo(true)}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors"
+            >
+              OVERRIDE — skip this task
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Misclick badge — shown when NOT in wrong app */}
+      {!wrongAppScreen && misclickCount > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="rounded-full bg-destructive/10 px-3 py-1 text-sm text-destructive font-medium">
             Wrong taps: {misclickCount}
@@ -241,16 +292,41 @@ export const DemoSection: React.FC = () => {
       {/* Phone simulator */}
       <div className="flex justify-center">
         <PhoneFrame className="w-[320px]" time="9:41">
-          {phoneScreen === 'home' && (
+          {/* Wrong-app screens */}
+          {wrongAppScreen && (
+            <WrongAppScreen onGoBack={handleGoBackFromWrongApp}>
+              {wrongAppScreen === 'phone' && <PhoneRecentsScreen />}
+              {wrongAppScreen === 'mail' && (
+                <GmailApp
+                  simpleMode
+                  showHint={false}
+                  onMisclick={() => setTargetErrors(p => p + 1)}
+                  onWrongEmailNav={(name) => {
+                    setNavErrors(p => p + 1);
+                    setWrongScreenNames(prev => [...prev, `mail-${name}`]);
+                  }}
+                  onGoBackFromWrong={() => {}}
+                />
+              )}
+              {wrongAppScreen === 'settings' && <SettingsScreen />}
+              {wrongAppScreen === 'music' && <MusicScreen />}
+              {!['phone', 'mail', 'settings', 'music'].includes(wrongAppScreen) && (
+                <GenericAppLaunchScreen appId={wrongAppScreen} />
+              )}
+            </WrongAppScreen>
+          )}
+
+          {/* Normal screens */}
+          {!wrongAppScreen && phoneScreen === 'home' && (
             <HomeScreen
               onAppTap={(id) => { if (id === 'messages') setPhoneScreen('messages'); }}
-              onMisclick={() => setNavErrors(p => p + 1)}
+              onWrongAppTap={handleWrongAppTap}
               targetApps={['messages']}
               simpleMode
               showHint
             />
           )}
-          {phoneScreen === 'messages' && (
+          {!wrongAppScreen && phoneScreen === 'messages' && (
             <MessagesApp
               key="demo-messages"
               onBack={() => setPhoneScreen('home')}
@@ -265,8 +341,8 @@ export const DemoSection: React.FC = () => {
         </PhoneFrame>
       </div>
 
-      {/* Override panel — appears after 5 misclicks */}
-      {misclickCount >= OVERRIDE_THRESHOLD && (
+      {/* Override panel — appears after 5 misclicks when NOT in a wrong app */}
+      {!wrongAppScreen && misclickCount >= OVERRIDE_THRESHOLD && (
         <div className="rounded-xl border-2 border-orange-400 bg-orange-50 dark:bg-orange-950/30 p-5 text-center space-y-3">
           <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
             Having trouble with this task?
