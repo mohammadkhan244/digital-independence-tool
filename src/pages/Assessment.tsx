@@ -1104,6 +1104,30 @@ const Assessment: React.FC = () => {
                 </p>
               </div>
             </div>
+            {completedCount > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground h-8 text-xs">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Start Over
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Start New Session</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will begin a fresh assessment session. Your completed session data is saved to history and will not be deleted.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => { resetAssessment(); setIsAssessmentComplete(false); }}>
+                      Start New Session
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </header>
 
@@ -1206,33 +1230,6 @@ const Assessment: React.FC = () => {
               <ArrowRight className="h-5 w-5" />
             </Button>
 
-            {completedCount > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5">
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Start Over
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Start Over</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will clear your current results. Are you sure? This cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => { resetAssessment(); setSelectedMode(null); }}
-                    >
-                      Yes, start over
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
           </div>
         </main>
       </div>
@@ -1463,6 +1460,7 @@ const Assessment: React.FC = () => {
                       <GmailApp
                         simpleMode={simpleMode}
                         showHint={false}
+                        onMisclick={() => handleMisclick('targeting')}
                         onWrongEmailNav={(name) => recordWrongScreenNav(`mail-${name}`)}
                         onGoBackFromWrong={recordGoBack}
                       />
