@@ -73,6 +73,7 @@ const allApps: AppIconData[] = [
 interface HomeScreenProps {
   onAppTap: (appId: string) => void;
   onMisclick?: (appId: string) => void;
+  onWrongAppTap?: (appId: string) => void;
   targetApps?: string[];
   simpleMode?: boolean;
   highlightTarget?: string;
@@ -82,6 +83,7 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onAppTap,
   onMisclick,
+  onWrongAppTap,
   targetApps = [],
   simpleMode = true,
   highlightTarget,
@@ -105,6 +107,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleTap = (appId: string) => {
     if (targetApps.includes(appId)) {
       onAppTap(appId);
+    } else if (onWrongAppTap) {
+      onWrongAppTap(appId);
     } else {
       onMisclick?.(appId);
     }

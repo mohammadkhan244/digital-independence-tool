@@ -36,6 +36,8 @@ import {
   AlertTriangle,
   Clock,
   Volume2,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType, CueLevel, AssessmentMode } from '@/types/assessment';
 
@@ -266,6 +268,8 @@ const Assessment: React.FC = () => {
     startAssessment,
     completeStep,
     recordMisclick,
+    recordWrongScreenNav,
+    recordGoBack,
     jumpToModule,
     setOpenEndedResponse,
     setDifficultyMode,
@@ -282,6 +286,7 @@ const Assessment: React.FC = () => {
   const [showModuleOverview, setShowModuleOverview] = useState(true);
   const [phoneScreen, setPhoneScreen] = useState<PhoneScreen>('home');
   const [myChartScreen, setMyChartScreen] = useState<MyChartScreen>('results');
+  const [wrongAppScreen, setWrongAppScreen] = useState<string | null>(null);
   const [showOpenEnded, setShowOpenEnded] = useState(false);
   const [automatedScore, setAutomatedScore] = useState<Score | null>(null);
   const [stepCompleted, setStepCompleted] = useState(false);
@@ -345,6 +350,7 @@ const Assessment: React.FC = () => {
     if (!currentStep || !currentModule) return;
     setStepCompleted(false);
     setAutomatedScore(null);
+    setWrongAppScreen(null);
     // Reset rehab cue state on every new step
     setRehabCueCount(0);
     setRehabShowHint(false);
@@ -596,6 +602,20 @@ const Assessment: React.FC = () => {
     [recordMisclick, isRehabMode],
   );
 
+  // ── Wrong-screen navigation (cross-app, from HomeScreen) ──────────────────
+  const handleWrongAppTap = useCallback(
+    (appId: string) => {
+      setWrongAppScreen(appId);
+      recordWrongScreenNav(`phone-${appId}`);
+    },
+    [recordWrongScreenNav],
+  );
+
+  const handleGoBackFromWrongApp = useCallback(() => {
+    setWrongAppScreen(null);
+    recordGoBack();
+  }, [recordGoBack]);
+
   // ── Module overview helpers ───────────────────────────────────────────────
   const isModuleCompleted = useCallback(
     (moduleId: string): boolean => {
@@ -651,6 +671,7 @@ const Assessment: React.FC = () => {
     clearProgress();
     setPhoneScreen('home');
     setMyChartScreen('results');
+    setWrongAppScreen(null);
     setAutomatedScore(null);
     setStepCompleted(false);
     setRehabCueCount(0);
@@ -1064,59 +1085,129 @@ const Assessment: React.FC = () => {
 
             {/* ── Digital Communications simulator ── */}
             {isDCModule && (
-              <div className="relative flex justify-center isolate">
-                {showDemoOverlay && (
-                  <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
+              <div className="isolate space-y-2">
+                {/* Go Back — shown when patient navigated to wrong phone app */}
+                {wrongAppScreen && (
+                  <button
+                    onClick={handleGoBackFromWrongApp}
+                    className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Go Back — return to task
+                  </button>
                 )}
-                <PhoneFrame className="w-[320px]">
-                  {phoneScreen === 'home' && (
-                    <HomeScreen
-                      onAppTap={handleAppTap}
-                      onMisclick={() => handleMisclick('navigation')}
-                      targetApps={['messages']}
-                      simpleMode={simpleMode}
-                      highlightTarget="messages"
-                      showHint={effectiveShowHint}
-                    />
+                <div className="relative flex justify-center">
+                  {showDemoOverlay && !wrongAppScreen && (
+                    <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
                   )}
+                  <PhoneFrame className="w-[320px]">
+                    {/* Wrong-app placeholder screens */}
+                    {wrongAppScreen === 'phone' && (
+                      <div className="flex h-full flex-col bg-gray-900 items-center justify-center gap-6 py-8">
+                        <p className="text-white/60 text-sm font-medium">Phone · Keypad</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {['1','2','3','4','5','6','7','8','9','*','0','#'].map(k => (
+                            <div key={k} className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-700">
+                              <span className="text-white text-lg font-light">{k}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500">
+                          <Phone className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                    )}
+                    {wrongAppScreen === 'mail' && (
+                      <div className="flex h-full flex-col bg-white">
+                        <div className="flex items-center justify-between border-b px-4 py-3 bg-gray-100">
+                          <span className="font-bold text-gray-800 text-lg">Mail</span>
+                          <span className="text-blue-500 text-sm font-medium">Edit</span>
+                        </div>
+                        <div className="flex-1 flex items-center justify-center">
+                          <div className="text-center text-gray-400">
+                            <Mail className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">No messages</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {wrongAppScreen === 'settings' && (
+                      <div className="flex h-full flex-col bg-gray-100">
+                        <div className="px-4 py-4 bg-gray-100">
+                          <h1 className="font-bold text-gray-900 text-2xl">Settings</h1>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                          {['Wi-Fi','Bluetooth','Notifications','General','Display & Brightness','Privacy & Security'].map(item => (
+                            <div key={item} className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3.5">
+                              <span className="text-gray-800 text-base">{item}</span>
+                              <ChevronRight className="h-4 w-4 text-gray-400" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {wrongAppScreen && !['phone','mail','settings'].includes(wrongAppScreen) && (
+                      <div className="flex h-full items-center justify-center bg-gray-900">
+                        <p className="text-gray-400 text-sm capitalize">{wrongAppScreen} opened</p>
+                      </div>
+                    )}
 
-                  {(phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
-                    <MessagesApp
-                      key={simulatorResetKey}
-                      onBack={() => setPhoneScreen('home')}
-                      onContactSelect={handleContactSelect}
-                      onSendMessage={handleSendMessage}
-                      onMisclick={() => handleMisclick('targeting')}
-                      targetContact={targetContactId}
-                      simpleMode={simpleMode}
-                      showHint={effectiveShowHint}
-                      currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
-                      variant={isReassessMode ? 'reassessment' : undefined}
-                    />
-                  )}
+                    {/* Normal simulator screens */}
+                    {!wrongAppScreen && phoneScreen === 'home' && (
+                      <HomeScreen
+                        onAppTap={handleAppTap}
+                        onWrongAppTap={handleWrongAppTap}
+                        targetApps={['messages']}
+                        simpleMode={simpleMode}
+                        highlightTarget="messages"
+                        showHint={effectiveShowHint}
+                      />
+                    )}
 
-                  {phoneScreen === 'gmail' && (
-                    <GmailApp
-                      key={simulatorResetKey}
-                      onAction={handleGmailAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={effectiveShowHint}
-                      variant={isReassessMode ? 'reassessment' : undefined}
-                    />
-                  )}
+                    {!wrongAppScreen && (phoneScreen === 'messages' || phoneScreen === 'messages-conversation') && (
+                      <MessagesApp
+                        key={simulatorResetKey}
+                        onBack={() => setPhoneScreen('home')}
+                        onContactSelect={handleContactSelect}
+                        onSendMessage={handleSendMessage}
+                        onMisclick={() => handleMisclick('targeting')}
+                        onWrongContactNav={(name) => recordWrongScreenNav(`messages-${name}`)}
+                        onGoBackFromWrong={recordGoBack}
+                        targetContact={targetContactId}
+                        simpleMode={simpleMode}
+                        showHint={effectiveShowHint}
+                        currentStep={phoneScreen === 'messages-conversation' ? 'conversation' : 'list'}
+                        variant={isReassessMode ? 'reassessment' : undefined}
+                      />
+                    )}
 
-                  {phoneScreen === 'telehealth' && (
-                    <TelehealthCall
-                      key={simulatorResetKey}
-                      onAction={handleTelehealthAction}
-                      onMisclick={() => handleMisclick('targeting')}
-                      simpleMode={simpleMode}
-                      showHint={effectiveShowHint}
-                      variant={isReassessMode ? 'reassessment' : undefined}
-                    />
-                  )}
-                </PhoneFrame>
+                    {!wrongAppScreen && phoneScreen === 'gmail' && (
+                      <GmailApp
+                        key={simulatorResetKey}
+                        onAction={handleGmailAction}
+                        onMisclick={() => handleMisclick('targeting')}
+                        onWrongEmailNav={(name) => recordWrongScreenNav(`gmail-${name}`)}
+                        onGoBackFromWrong={recordGoBack}
+                        simpleMode={simpleMode}
+                        showHint={effectiveShowHint}
+                        variant={isReassessMode ? 'reassessment' : undefined}
+                      />
+                    )}
+
+                    {!wrongAppScreen && phoneScreen === 'telehealth' && (
+                      <TelehealthCall
+                        key={simulatorResetKey}
+                        onAction={handleTelehealthAction}
+                        onMisclick={() => handleMisclick('targeting')}
+                        onWrongAction={(action) => recordWrongScreenNav(`telehealth-${action}`)}
+                        onGoBackFromWrong={recordGoBack}
+                        simpleMode={simpleMode}
+                        showHint={effectiveShowHint}
+                        variant={isReassessMode ? 'reassessment' : undefined}
+                      />
+                    )}
+                  </PhoneFrame>
+                </div>
               </div>
             )}
 
@@ -1130,7 +1221,9 @@ const Assessment: React.FC = () => {
                   <MyChartPortal
                     key={simulatorResetKey}
                     onAction={handleMyChartAction}
-                    onMisclick={() => handleMisclick('navigation')}
+                    onMisclick={() => handleMisclick('targeting')}
+                    onWrongNav={(name) => recordWrongScreenNav(`mychart-${name}`)}
+                    onGoBackFromWrong={recordGoBack}
                     currentStep={currentStep?.id ?? ''}
                     simpleMode={simpleMode}
                     showHint={effectiveShowHint}

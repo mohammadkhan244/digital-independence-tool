@@ -19,16 +19,18 @@ import {
   Clock,
 } from 'lucide-react';
 
-type MyChartView = 'results' | 'appointments' | 'messages';
+type MyChartView = 'results' | 'appointments' | 'messages' | 'medications' | 'billing';
 type MessagesSubView = 'inbox' | 'compose';
 
 interface MyChartPortalProps {
   onAction?: (action: string) => void;
   onMisclick?: () => void;
+  onWrongNav?: (screenName: string) => void;
+  onGoBackFromWrong?: () => void;
   currentStep?: string;
   simpleMode?: boolean;
   showHint?: boolean;
-  screen?: MyChartView;
+  screen?: 'results' | 'appointments' | 'messages';
   variant?: 'reassessment';
 }
 
@@ -130,6 +132,8 @@ const priorThread = {
 export const MyChartPortal: React.FC<MyChartPortalProps> = ({
   onAction,
   onMisclick,
+  onWrongNav,
+  onGoBackFromWrong,
   currentStep,
   simpleMode = true,
   showHint = false,
@@ -158,12 +162,13 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
     setMessageSubject('');
   }, [screen]);
 
-  const handleNav = (target: MyChartView | 'medications' | 'billing') => {
+  const handleNav = (target: MyChartView) => {
     if (target === 'medications' || target === 'billing') {
-      onMisclick?.();
-      return;
+      setView(target);
+      onWrongNav?.(target);
+    } else {
+      setView(target);
     }
-    setView(target as MyChartView);
   };
 
   const handleOpenResult = (resultId: string) => {
@@ -192,13 +197,13 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
     }
   };
 
-  const navItems = [
-    { id: 'appointments', label: 'Appointments', icon: Calendar, active: true },
-    { id: 'messages', label: 'Messages', icon: MessageSquare, active: true },
-    { id: 'results', label: 'Test Results', icon: FlaskConical, active: true },
-    { id: 'medications', label: 'Medications', icon: Pill, active: false },
-    { id: 'billing', label: 'Billing', icon: CreditCard, active: false },
-  ] as const;
+  const navItems: Array<{ id: MyChartView; label: string; icon: React.ElementType }> = [
+    { id: 'appointments', label: 'Appointments', icon: Calendar },
+    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'results', label: 'Test Results', icon: FlaskConical },
+    { id: 'medications', label: 'Medications', icon: Pill },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
+  ];
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-white font-sans">
@@ -238,16 +243,15 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
             <div className="py-2">
               {navItems.map(item => {
                 const isActive = view === item.id;
+                const isWrongItem = item.id === 'medications' || item.id === 'billing';
                 return (
                   <button
                     key={item.id}
                     onClick={() => handleNav(item.id)}
                     className={cn(
                       'flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors',
-                      isActive
-                        ? 'font-semibold'
-                        : 'text-gray-600 hover:bg-gray-50',
-                      !item.active && 'opacity-50 cursor-not-allowed',
+                      isActive ? 'font-semibold' : 'text-gray-600 hover:bg-gray-50',
+                      isWrongItem && !isActive && 'text-gray-400',
                       showHint && item.id === screen && 'bg-blue-50',
                     )}
                     style={isActive ? { color: MYCHART_TEAL, borderLeft: `3px solid ${MYCHART_TEAL}`, paddingLeft: 9 } : {}}
@@ -496,6 +500,44 @@ export const MyChartPortal: React.FC<MyChartPortalProps> = ({
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ═══ MEDICATIONS ═══ */}
+          {view === 'medications' && (
+            <div className="p-4 space-y-3">
+              <h2 className="text-base font-bold text-gray-800">Medications</h2>
+              <div className="rounded-xl border bg-white p-6 shadow-sm text-center">
+                <Pill className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-600">No active medications on file</p>
+                <p className="text-xs text-gray-400 mt-1">Contact your care team to update your medication list</p>
+              </div>
+              <button
+                onClick={() => { setView(screen); onGoBackFromWrong?.(); }}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-50"
+                style={{ color: MYCHART_TEAL }}
+              >
+                ← Go Back
+              </button>
+            </div>
+          )}
+
+          {/* ═══ BILLING ═══ */}
+          {view === 'billing' && (
+            <div className="p-4 space-y-3">
+              <h2 className="text-base font-bold text-gray-800">Billing</h2>
+              <div className="rounded-xl border bg-white p-6 shadow-sm text-center">
+                <CreditCard className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-600">No outstanding balance</p>
+                <p className="text-xs text-gray-400 mt-1">Your account is current — no payments due</p>
+              </div>
+              <button
+                onClick={() => { setView(screen); onGoBackFromWrong?.(); }}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-50"
+                style={{ color: MYCHART_TEAL }}
+              >
+                ← Go Back
+              </button>
             </div>
           )}
 

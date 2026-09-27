@@ -65,6 +65,7 @@ export function computeAnalytics(session: AssessmentSession | null): Performance
         cueLabel: step.cueLabel ?? null,
         completed: cl !== null ? cl > 0 : step.score !== 0,
         patientOverrideUsed: step.patientOverrideUsed ?? false,
+        wrongScreensCount: step.wrongScreensVisited?.length ?? 0,
       };
     });
 
@@ -127,6 +128,8 @@ export const useAssessment = () => {
   const stepMisclicks = useRef(0);
   const stepBacktracks = useRef(0);
   const stepErrors = useRef<ErrorType[]>([]);
+  const stepWrongScreens = useRef<string[]>([]);
+  const stepBackNavs = useRef(0);
   const [currentStepMisclicks, setCurrentStepMisclicks] = useState(0);
 
   // Initialize a new assessment session
@@ -185,6 +188,19 @@ export const useAssessment = () => {
     }
   }, []);
 
+  // Record a wrong-screen navigation (counts as navigation error + misclick)
+  const recordWrongScreenNav = useCallback((screenName: string) => {
+    stepWrongScreens.current.push(screenName);
+    stepMisclicks.current += 1;
+    setCurrentStepMisclicks(prev => prev + 1);
+    stepErrors.current.push('navigation');
+  }, []);
+
+  // Record a back navigation from a wrong screen (recovery, not an error)
+  const recordGoBack = useCallback(() => {
+    stepBackNavs.current += 1;
+  }, []);
+
   // Record a backtrack
   const recordBacktrack = useCallback(() => {
     stepBacktracks.current += 1;
@@ -217,6 +233,8 @@ export const useAssessment = () => {
       cueLevel,
       cueLabel,
       patientOverrideUsed: patientOverrideUsed ?? false,
+      wrongScreensVisited: [...stepWrongScreens.current],
+      backNavigations: stepBackNavs.current,
     };
 
     // Update or create module result
@@ -333,6 +351,8 @@ export const useAssessment = () => {
     stepMisclicks.current = 0;
     stepBacktracks.current = 0;
     stepErrors.current = [];
+    stepWrongScreens.current = [];
+    stepBackNavs.current = 0;
     setCurrentStepMisclicks(0);
 
     if (isLastStep && isLastModule) {
@@ -428,6 +448,8 @@ export const useAssessment = () => {
     stepMisclicks.current = 0;
     stepBacktracks.current = 0;
     stepErrors.current = [];
+    stepWrongScreens.current = [];
+    stepBackNavs.current = 0;
     setCurrentStepMisclicks(0);
   }, []);
 
@@ -442,6 +464,8 @@ export const useAssessment = () => {
     stepMisclicks.current = 0;
     stepBacktracks.current = 0;
     stepErrors.current = [];
+    stepWrongScreens.current = [];
+    stepBackNavs.current = 0;
     setCurrentStepMisclicks(0);
     eyeTrackingEvents.current = [];
   }, []);
@@ -514,6 +538,8 @@ export const useAssessment = () => {
     abandonStep,
     recordInteraction,
     recordMisclick,
+    recordWrongScreenNav,
+    recordGoBack,
     recordBacktrack,
     jumpToModule,
     setOpenEndedResponse,

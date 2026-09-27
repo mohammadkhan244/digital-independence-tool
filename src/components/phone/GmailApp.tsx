@@ -7,6 +7,8 @@ type GmailView = 'inbox' | 'thread' | 'compose';
 interface GmailAppProps {
   onAction?: (action: string) => void;
   onMisclick?: () => void;
+  onWrongEmailNav?: (emailName: string) => void;
+  onGoBackFromWrong?: () => void;
   simpleMode?: boolean;
   showHint?: boolean;
   variant?: 'reassessment';
@@ -61,6 +63,8 @@ const emailsReassessment = [
 export const GmailApp: React.FC<GmailAppProps> = ({
   onAction,
   onMisclick,
+  onWrongEmailNav,
+  onGoBackFromWrong,
   simpleMode = true,
   showHint = false,
   variant,
@@ -73,15 +77,18 @@ export const GmailApp: React.FC<GmailAppProps> = ({
     : 'Re: Your Upcoming Appointment & Lab Results';
 
   const [view, setView] = useState<GmailView>('inbox');
+  const [viewingEmailId, setViewingEmailId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replySubject, setReplySubject] = useState(defaultSubject);
 
   const handleEmailTap = (emailId: string) => {
+    setViewingEmailId(emailId);
+    setView('thread');
     if (emailId === targetEmailId) {
-      setView('thread');
       onAction?.('open_email');
     } else {
-      onMisclick?.();
+      const email = emailList.find(e => e.id === emailId);
+      onWrongEmailNav?.(email?.from ?? emailId);
     }
   };
 
@@ -157,18 +164,31 @@ export const GmailApp: React.FC<GmailAppProps> = ({
 
   /* ── Thread view ── */
   if (view === 'thread') {
-    const threadSubject = isReassessment
+    const isWrongEmail = viewingEmailId !== null && viewingEmailId !== targetEmailId;
+    const viewingEmail = emailList.find(e => e.id === viewingEmailId);
+
+    // Derive thread metadata: use the actual email's data when available
+    const threadSubject = viewingEmail?.subject ?? (isReassessment
       ? 'Your appointment summary is ready'
-      : 'Your Upcoming Appointment & Lab Results';
-    const threadFrom = isReassessment ? 'OhioHealth Patient Services' : "Dr. Patel's Office";
-    const threadInitials = isReassessment ? 'OH' : 'DO';
-    const threadTime = isReassessment ? '9:18 AM' : '10:42 AM';
-    const threadAvatarBg = isReassessment ? 'bg-emerald-600' : 'bg-blue-600';
+      : 'Your Upcoming Appointment & Lab Results');
+    const threadFrom = viewingEmail?.from ?? (isReassessment ? 'OhioHealth Patient Services' : "Dr. Patel's Office");
+    const threadInitials = viewingEmail?.initials ?? (isReassessment ? 'OH' : 'DO');
+    const threadTime = viewingEmail?.time ?? (isReassessment ? '9:18 AM' : '10:42 AM');
+    const threadAvatarBg = viewingEmail?.avatarBg ?? (isReassessment ? 'bg-emerald-600' : 'bg-blue-600');
 
     return (
       <div className="flex h-full flex-col bg-white">
         <div className="flex items-center gap-2 border-b bg-white px-3 py-3 shadow-sm">
-          <button onClick={() => setView('inbox')} className="p-1">
+          <button
+            onClick={() => {
+              setView('inbox');
+              if (isWrongEmail) {
+                onGoBackFromWrong?.();
+              }
+              setViewingEmailId(null);
+            }}
+            className="p-1"
+          >
             <ChevronLeft className="h-5 w-5 text-gray-600" />
           </button>
           <span className="flex-1 truncate text-sm font-medium text-gray-800">
@@ -192,7 +212,13 @@ export const GmailApp: React.FC<GmailAppProps> = ({
                 <span className="text-xs text-gray-500 ml-2 flex-shrink-0">{threadTime}</span>
               </div>
               <p className="text-xs text-gray-500 mb-3">to me</p>
-              {isReassessment ? (
+              {isWrongEmail ? (
+                <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                  <p>
+                    {viewingEmail?.preview ?? 'Your prescription is ready for pickup at our Main Street location.'}
+                  </p>
+                </div>
+              ) : isReassessment ? (
                 <div className="text-sm text-gray-700 leading-relaxed space-y-2">
                   <p>Dear Patient,</p>
                   <p>
@@ -237,21 +263,23 @@ export const GmailApp: React.FC<GmailAppProps> = ({
           </div>
         </div>
 
-        {/* Reply bar */}
-        <div className={cn('border-t px-4 py-3', showHint && 'bg-blue-50')}>
-          <button
-            onClick={handleReply}
-            className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-full border py-3 text-sm font-medium transition-colors',
-              showHint
-                ? 'border-blue-500 bg-blue-600 text-white'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50',
-            )}
-          >
-            <Reply className="h-4 w-4" />
-            Reply
-          </button>
-        </div>
+        {/* Reply bar — only shown for the target email */}
+        {!isWrongEmail && (
+          <div className={cn('border-t px-4 py-3', showHint && 'bg-blue-50')}>
+            <button
+              onClick={handleReply}
+              className={cn(
+                'flex w-full items-center justify-center gap-2 rounded-full border py-3 text-sm font-medium transition-colors',
+                showHint
+                  ? 'border-blue-500 bg-blue-600 text-white'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50',
+              )}
+            >
+              <Reply className="h-4 w-4" />
+              Reply
+            </button>
+          </div>
+        )}
       </div>
     );
   }

@@ -5,6 +5,8 @@ import { Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff } from 'lucide-re
 interface TelehealthCallProps {
   onAction?: (action: string) => void;
   onMisclick?: () => void;
+  onWrongAction?: (action: string) => void;
+  onGoBackFromWrong?: () => void;
   simpleMode?: boolean;
   showHint?: boolean;
   variant?: 'reassessment';
@@ -13,6 +15,8 @@ interface TelehealthCallProps {
 export const TelehealthCall: React.FC<TelehealthCallProps> = ({
   onAction,
   onMisclick,
+  onWrongAction,
+  onGoBackFromWrong,
   simpleMode = true,
   showHint = false,
   variant,
@@ -26,6 +30,9 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
   // Reassessment: camera starts OFF (task = turn it ON)
   const [isCameraOn, setIsCameraOn] = useState(!isReassessment);
   const [elapsed, setElapsed] = useState(201); // start at 3:21
+  const [showChat, setShowChat] = useState(false);
+  const [showEndCallConfirm, setShowEndCallConfirm] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -56,6 +63,71 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
 
   return (
     <div className="relative flex h-full flex-col bg-gray-900">
+      {/* Chat panel overlay */}
+      {showChat && (
+        <div className="absolute inset-0 z-20 flex flex-col bg-gray-900">
+          <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3">
+            <button
+              onClick={() => { setShowChat(false); onGoBackFromWrong?.(); }}
+              className="text-blue-400 font-medium text-sm"
+            >
+              ← Close
+            </button>
+            <span className="text-white font-medium text-sm">Chat</span>
+            <div className="w-12" />
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-gray-500 text-sm">No messages yet</p>
+          </div>
+          <div className="border-t border-gray-700 px-4 py-3">
+            <div className="flex items-center gap-2 rounded-full bg-gray-800 px-4 py-2.5">
+              <span className="flex-1 text-sm text-gray-500">Type a message…</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End call confirmation overlay */}
+      {showEndCallConfirm && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
+          <div className="mx-4 rounded-2xl bg-gray-800 p-6 w-full max-w-xs">
+            <p className="text-white font-semibold text-center mb-1">Leave this call?</p>
+            <p className="text-gray-400 text-xs text-center mb-5">Your telehealth visit is still in progress.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEndCallConfirm(false)}
+                className="flex-1 rounded-xl bg-gray-600 py-3 text-white font-medium text-sm"
+              >
+                Stay
+              </button>
+              <button
+                onClick={() => {
+                  setCallEnded(true);
+                  setShowEndCallConfirm(false);
+                  onWrongAction?.('end-call');
+                }}
+                className="flex-1 rounded-xl bg-red-600 py-3 text-white font-medium text-sm"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Call ended screen */}
+      {callEnded && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black">
+          <p className="text-white text-lg font-semibold mb-1">Call Ended</p>
+          <p className="text-gray-500 text-sm mb-6">Your session has ended</p>
+          <button
+            onClick={() => { setCallEnded(false); onGoBackFromWrong?.(); }}
+            className="rounded-xl bg-blue-600 px-6 py-2.5 text-white font-medium text-sm"
+          >
+            Rejoin Call
+          </button>
+        </div>
+      )}
       {/* Top bar */}
       <div className="flex items-center justify-between bg-black/60 px-4 py-3 z-10">
         <div>
@@ -131,7 +203,10 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
 
         {/* End call */}
         <button
-          onClick={onMisclick}
+          onClick={() => {
+            setShowEndCallConfirm(true);
+            onWrongAction?.('end-call-attempt');
+          }}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600 shadow-lg"
         >
           <PhoneOff className="h-6 w-6 text-white" />
@@ -139,7 +214,10 @@ export const TelehealthCall: React.FC<TelehealthCallProps> = ({
 
         {/* Chat */}
         <button
-          onClick={onMisclick}
+          onClick={() => {
+            setShowChat(true);
+            onWrongAction?.('chat');
+          }}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-600"
         >
           <MessageSquare className="h-6 w-6 text-white" />

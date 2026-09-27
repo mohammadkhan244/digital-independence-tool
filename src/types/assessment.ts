@@ -44,6 +44,8 @@ export interface StepResult {
   cueLevel?: CueLevel;
   cueLabel?: string;
   patientOverrideUsed?: boolean;
+  wrongScreensVisited?: string[];
+  backNavigations?: number;
 }
 
 export interface ModuleDefinition {
@@ -120,6 +122,7 @@ export interface PerformanceAnalytics {
       cueLabel: string | null;
       completed: boolean;
       patientOverrideUsed: boolean;
+      wrongScreensCount: number;
     }>;
   }>;
 }

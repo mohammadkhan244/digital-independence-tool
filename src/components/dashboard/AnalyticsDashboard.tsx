@@ -78,6 +78,7 @@ const getCueSummary = (
     cueLabel: string | null;
     stepLabel: string;
     completed: boolean;
+    wrongScreensCount?: number;
   }>,
 ): string | null => {
   const withData = cueBreakdown.filter(s => s.cueLevel !== null);
@@ -376,6 +377,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                           <th className="text-left p-3 font-medium">Task</th>
                           <th className="text-center p-3 font-medium">Outcome</th>
                           <th className="text-center p-3 font-medium">Cue Level</th>
+                          <th className="text-center p-3 font-medium">Wrong Screens</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -422,6 +424,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                               ) : (
                                 <span className="text-muted-foreground">—</span>
                               )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className={cn(
+                                'text-sm font-medium',
+                                (step.wrongScreensCount ?? 0) > 0 ? 'text-chart-4' : 'text-muted-foreground',
+                              )}>
+                                {step.wrongScreensCount ?? 0}
+                              </span>
                             </td>
                           </tr>
                         ))}

@@ -31,6 +31,8 @@ interface MessagesAppProps {
   onContactSelect?: (contactId: string) => void;
   onSendMessage?: (message: string) => void;
   onMisclick?: () => void;
+  onWrongContactNav?: (contactName: string) => void;
+  onGoBackFromWrong?: () => void;
   targetContact?: string;
   simpleMode?: boolean;
   showHint?: boolean;
@@ -43,6 +45,8 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
   onContactSelect,
   onSendMessage,
   onMisclick,
+  onWrongContactNav,
+  onGoBackFromWrong,
   targetContact = 'dr-smith',
   simpleMode = true,
   showHint = false,
@@ -58,12 +62,12 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
   const [messageText, setMessageText] = useState('');
 
   const handleContactTap = (contact: Contact) => {
+    setSelectedContact(contact);
+    setView('conversation');
     if (contact.id === targetContact) {
-      setSelectedContact(contact);
-      setView('conversation');
       onContactSelect?.(contact.id);
     } else {
-      onMisclick?.();
+      onWrongContactNav?.(contact.name);
     }
   };
 
@@ -81,8 +85,16 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
       <div className="flex h-full flex-col bg-white">
         {/* Header */}
         <div className="flex items-center gap-3 border-b bg-gray-50 px-4 py-3">
-          <button 
-            onClick={() => { setView('list'); onBack?.(); }}
+          <button
+            onClick={() => {
+              const isWrong = selectedContact?.id !== targetContact;
+              setView('list');
+              if (isWrong) {
+                onGoBackFromWrong?.();
+              } else {
+                onBack?.();
+              }
+            }}
             className="flex items-center text-blue-500 touch-target"
           >
             <ChevronLeft className="h-6 w-6" />
