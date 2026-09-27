@@ -631,6 +631,7 @@ const Assessment: React.FC = () => {
     setDifficultyMode,
     getCurrentContext,
     currentStepMisclicks,
+    currentWrongScreenCount,
   } = useAssessment();
 
   const OVERRIDE_THRESHOLD = 5;
@@ -892,11 +893,11 @@ const Assessment: React.FC = () => {
     (_message: string) => {
       if (stepCompleted) return;
       if (currentStep?.id === 'dc-step1') {
-        setAutomatedScore(2);
+        setAutomatedScore(currentWrongScreenCount >= 1 ? 1 : 2);
         setStepCompleted(true);
       }
     },
-    [currentStep, stepCompleted],
+    [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
   // ── DC Gmail handler ──────────────────────────────────────────────────────
@@ -904,11 +905,11 @@ const Assessment: React.FC = () => {
     (action: string) => {
       if (stepCompleted) return;
       if (action === 'send_email' && currentStep?.id === 'dc-step2') {
-        setAutomatedScore(2);
+        setAutomatedScore(currentWrongScreenCount >= 1 ? 1 : 2);
         setStepCompleted(true);
       }
     },
-    [currentStep, stepCompleted],
+    [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
   // ── DC Telehealth handler ─────────────────────────────────────────────────
@@ -918,12 +919,12 @@ const Assessment: React.FC = () => {
       if (currentStep?.id === 'dc-step3') {
         const expectedAction = isReassessMode ? 'toggle_camera' : 'toggle_mute';
         if (action === expectedAction) {
-          setAutomatedScore(2);
+          setAutomatedScore(currentWrongScreenCount >= 1 ? 1 : 2);
           setStepCompleted(true);
         }
       }
     },
-    [currentStep, stepCompleted, isReassessMode],
+    [currentStep, stepCompleted, isReassessMode, currentWrongScreenCount],
   );
 
   // ── EHR MyChart handlers ──────────────────────────────────────────────────
@@ -931,19 +932,20 @@ const Assessment: React.FC = () => {
     (action: string) => {
       if (stepCompleted) return;
       const sid = currentStep?.id;
+      const adjustedScore: Score = currentWrongScreenCount >= 1 ? 1 : 2;
       switch (action) {
         case 'open_result':
-          if (sid === 'ehr-step1') { setAutomatedScore(2); setStepCompleted(true); }
+          if (sid === 'ehr-step1') { setAutomatedScore(adjustedScore); setStepCompleted(true); }
           break;
         case 'view_appointment':
-          if (sid === 'ehr-step2') { setAutomatedScore(2); setStepCompleted(true); }
+          if (sid === 'ehr-step2') { setAutomatedScore(adjustedScore); setStepCompleted(true); }
           break;
         case 'send_message':
-          if (sid === 'ehr-step3') { setAutomatedScore(2); setStepCompleted(true); }
+          if (sid === 'ehr-step3') { setAutomatedScore(adjustedScore); setStepCompleted(true); }
           break;
       }
     },
-    [currentStep, stepCompleted],
+    [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
   // ── Misclick ──────────────────────────────────────────────────────────────
@@ -1107,9 +1109,9 @@ const Assessment: React.FC = () => {
             {completedCount > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground h-8 text-xs">
+                  <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-950/40">
                     <RotateCcw className="h-3.5 w-3.5" />
-                    Start Over
+                    New Patient
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -1439,36 +1441,60 @@ const Assessment: React.FC = () => {
             {/* ── Digital Communications simulator ── */}
             {isDCModule && (
               <div className="isolate space-y-2">
-                {/* Go Back — shown when patient navigated to wrong phone app */}
+                {/* Persistent "wrong app" banner — shown when patient navigated off-task */}
                 {wrongAppScreen && (
-                  <button
-                    onClick={handleGoBackFromWrongApp}
-                    className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Go Back — return to task
-                  </button>
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={handleGoBackFromWrongApp}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-orange-500 hover:bg-orange-600 active:bg-orange-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Wrong app — tap to return to task
+                    </button>
+                    {currentStepMisclicks >= OVERRIDE_THRESHOLD && !stepCompleted && (
+                      <button
+                        onClick={handlePatientOverride}
+                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors"
+                      >
+                        OVERRIDE — skip this task
+                      </button>
+                    )}
+                  </div>
                 )}
                 <div className="relative flex justify-center">
                   {showDemoOverlay && !wrongAppScreen && (
                     <DemoPointer stepKey={sysKey} onDone={handleDemoDone} />
                   )}
                   <PhoneFrame className="w-[320px]">
-                    {/* Realistic wrong-app screens */}
-                    {wrongAppScreen === 'phone' && <PhoneRecentsScreen />}
-                    {wrongAppScreen === 'mail' && (
-                      <GmailApp
-                        simpleMode={simpleMode}
-                        showHint={false}
-                        onMisclick={() => handleMisclick('targeting')}
-                        onWrongEmailNav={(name) => recordWrongScreenNav(`mail-${name}`)}
-                        onGoBackFromWrong={recordGoBack}
-                      />
-                    )}
-                    {wrongAppScreen === 'settings' && <SettingsScreen />}
-                    {wrongAppScreen === 'music' && <MusicScreen />}
-                    {wrongAppScreen && !['phone', 'mail', 'settings', 'music'].includes(wrongAppScreen) && (
-                      <GenericAppLaunchScreen appId={wrongAppScreen} />
+                    {/* Realistic wrong-app screens — wrapped with a sticky return strip */}
+                    {wrongAppScreen && (
+                      <div className="relative h-full overflow-hidden">
+                        <div className="absolute inset-0 bottom-9 overflow-hidden">
+                          {wrongAppScreen === 'phone' && <PhoneRecentsScreen />}
+                          {wrongAppScreen === 'mail' && (
+                            <GmailApp
+                              simpleMode={simpleMode}
+                              showHint={false}
+                              onMisclick={() => handleMisclick('targeting')}
+                              onWrongEmailNav={(name) => recordWrongScreenNav(`mail-${name}`)}
+                              onGoBackFromWrong={recordGoBack}
+                            />
+                          )}
+                          {wrongAppScreen === 'settings' && <SettingsScreen />}
+                          {wrongAppScreen === 'music' && <MusicScreen />}
+                          {!['phone', 'mail', 'settings', 'music'].includes(wrongAppScreen) && (
+                            <GenericAppLaunchScreen appId={wrongAppScreen} />
+                          )}
+                        </div>
+                        {/* Sticky return strip at bottom of phone screen */}
+                        <button
+                          onClick={handleGoBackFromWrongApp}
+                          className="absolute bottom-0 left-0 right-0 h-9 flex items-center justify-center gap-1.5 bg-orange-500 text-xs font-bold text-white z-10"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                          Return to Task
+                        </button>
+                      </div>
                     )}
 
                     {/* Normal simulator screens */}

@@ -132,6 +132,7 @@ export const useAssessment = () => {
   const stepWrongScreens = useRef<string[]>([]);
   const stepBackNavs = useRef(0);
   const [currentStepMisclicks, setCurrentStepMisclicks] = useState(0);
+  const [currentWrongScreenCount, setCurrentWrongScreenCount] = useState(0);
 
   // Initialize a new assessment session
   const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0, assessmentMode: AssessmentMode = 'assessment') => {
@@ -194,6 +195,7 @@ export const useAssessment = () => {
     stepWrongScreens.current.push(screenName);
     stepMisclicks.current += 1;
     setCurrentStepMisclicks(prev => prev + 1);
+    setCurrentWrongScreenCount(prev => prev + 1);
     stepErrors.current.push('navigation');
   }, []);
 
@@ -355,6 +357,7 @@ export const useAssessment = () => {
     stepWrongScreens.current = [];
     stepBackNavs.current = 0;
     setCurrentStepMisclicks(0);
+    setCurrentWrongScreenCount(0);
 
     if (isLastStep && isLastModule) {
       clearProgress();
@@ -452,6 +455,7 @@ export const useAssessment = () => {
     stepWrongScreens.current = [];
     stepBackNavs.current = 0;
     setCurrentStepMisclicks(0);
+    setCurrentWrongScreenCount(0);
   }, []);
 
   // Reset in-progress state for a new session; completed history in eadl_all_sessions is never touched
@@ -468,6 +472,7 @@ export const useAssessment = () => {
     stepWrongScreens.current = [];
     stepBackNavs.current = 0;
     setCurrentStepMisclicks(0);
+    setCurrentWrongScreenCount(0);
     eyeTrackingEvents.current = [];
   }, []);
 
@@ -532,6 +537,7 @@ export const useAssessment = () => {
     hasLoaded,
     savedProgressExists,
     currentStepMisclicks,
+    currentWrongScreenCount,
     clearProgress,
     resetAssessment,
     startAssessment,
