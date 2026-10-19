@@ -888,6 +888,70 @@ const Assessment: React.FC = () => {
             </div>
           </div>
 
+          {/* Action buttons */}
+          <div className="mb-6">
+            <Button
+              size="lg"
+              onClick={allDone ? () => navigate('/dashboard') : handleEnterModule}
+              className="w-full gap-2"
+            >
+              {allDone ? 'View Results' : isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+            {allDone && (
+              <div className="flex gap-2 mt-2">
+                {activeMode !== 'rehabilitation' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 border-chart-1 text-chart-1 hover:bg-chart-1/5"
+                    onClick={() => {
+                      resetAssessment();
+                      setIsAssessmentComplete(false);
+                      setSkipToMode('rehabilitation');
+                      setSelectedMode(null);
+                    }}
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                    New Rehab Session
+                  </Button>
+                )}
+                {activeMode !== 'reassessment' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 border-chart-2 text-chart-2 hover:bg-chart-2/5"
+                    onClick={() => {
+                      resetAssessment();
+                      setIsAssessmentComplete(false);
+                      setBaselineSessionId(undefined);
+                      setSelectedMode('reassessment');
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Start Reassessment
+                  </Button>
+                )}
+                {activeMode !== 'assessment' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    onClick={() => {
+                      resetAssessment();
+                      setIsAssessmentComplete(false);
+                      setBaselineSessionId(undefined);
+                      setSelectedMode('assessment');
+                    }}
+                  >
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    New Assessment
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Focus-on-weak-areas toggle — rehab + baseline only */}
           {baselineAnalytics && (
             <div className="mb-4 flex items-center justify-between rounded-xl border bg-card px-4 py-3">
@@ -997,69 +1061,6 @@ const Assessment: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex flex-col items-center gap-3">
-            <Button
-              size="lg"
-              onClick={allDone ? () => navigate('/dashboard') : handleEnterModule}
-              className="gap-2 px-8"
-            >
-              {allDone ? 'View Results' : isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-
-            {allDone && (
-              <div className="flex flex-wrap justify-center gap-2 mt-1">
-                {activeMode !== 'rehabilitation' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-chart-1 text-chart-1 hover:bg-chart-1/5"
-                    onClick={() => {
-                      resetAssessment();
-                      setIsAssessmentComplete(false);
-                      setSkipToMode('rehabilitation');
-                      setSelectedMode(null);
-                    }}
-                  >
-                    <Activity className="h-3.5 w-3.5" />
-                    New Rehab Session
-                  </Button>
-                )}
-                {activeMode !== 'reassessment' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-chart-2 text-chart-2 hover:bg-chart-2/5"
-                    onClick={() => {
-                      resetAssessment();
-                      setIsAssessmentComplete(false);
-                      setBaselineSessionId(undefined);
-                      setSelectedMode('reassessment');
-                    }}
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Start Reassessment
-                  </Button>
-                )}
-                {activeMode !== 'assessment' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => {
-                      resetAssessment();
-                      setIsAssessmentComplete(false);
-                      setBaselineSessionId(undefined);
-                      setSelectedMode('assessment');
-                    }}
-                  >
-                    <ClipboardCheck className="h-3.5 w-3.5" />
-                    New Assessment
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
         </main>
       </div>
     );
