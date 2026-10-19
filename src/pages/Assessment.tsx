@@ -904,7 +904,7 @@ const Assessment: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 gap-1.5 border-chart-1 text-chart-1 hover:bg-chart-1/5"
+                    className="flex-1 gap-1.5 border-chart-1 text-chart-1 hover:bg-chart-1/10 hover:text-chart-1"
                     onClick={() => {
                       resetAssessment();
                       setIsAssessmentComplete(false);
@@ -920,7 +920,7 @@ const Assessment: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 gap-1.5 border-chart-2 text-chart-2 hover:bg-chart-2/5"
+                    className="flex-1 gap-1.5 border-chart-2 text-chart-2 hover:bg-chart-2/10 hover:text-chart-2"
                     onClick={() => {
                       resetAssessment();
                       setIsAssessmentComplete(false);
