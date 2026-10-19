@@ -96,6 +96,7 @@ export interface AssessmentSession {
   assessmentMode?: AssessmentMode;
   moduleResults: ModuleResult[];
   version: string;
+  baselineSessionId?: string;
 }
 
 export interface PerformanceAnalytics {

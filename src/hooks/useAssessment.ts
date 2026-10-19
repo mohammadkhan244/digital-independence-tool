@@ -135,7 +135,7 @@ export const useAssessment = () => {
   const [currentWrongScreenCount, setCurrentWrongScreenCount] = useState(0);
 
   // Initialize a new assessment session
-  const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0, assessmentMode: AssessmentMode = 'assessment') => {
+  const startAssessment = useCallback((adaptiveMode: boolean = true, eyeTracking: boolean = false, startModuleIndex: number = 0, assessmentMode: AssessmentMode = 'assessment', baselineSessionId?: string) => {
     clearProgress();
     const newSession: AssessmentSession = {
       id: generateId(),
@@ -149,6 +149,7 @@ export const useAssessment = () => {
       assessmentMode,
       moduleResults: [],
       version: ASSESSMENT_VERSION,
+      baselineSessionId,
     };
     
     setSession(newSession);

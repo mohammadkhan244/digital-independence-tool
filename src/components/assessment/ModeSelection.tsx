@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AssessmentMode } from '@/types/assessment';
 import { ClipboardCheck, Activity, RefreshCw, ArrowRight } from 'lucide-react';
+import { BaselineSessionPicker } from './BaselineSessionPicker';
 
 interface ModeSelectionProps {
-  onSelect: (mode: AssessmentMode) => void;
+  onSelect: (mode: AssessmentMode, baselineSessionId?: string) => void;
 }
 
 const MODES: {
@@ -46,6 +47,25 @@ const MODES: {
 ];
 
 export const ModeSelection: React.FC<ModeSelectionProps> = ({ onSelect }) => {
+  const [step, setStep] = useState<'pick-mode' | 'pick-baseline'>('pick-mode');
+
+  const handleModeClick = (id: AssessmentMode) => {
+    if (id === 'rehabilitation') {
+      setStep('pick-baseline');
+    } else {
+      onSelect(id);
+    }
+  };
+
+  if (step === 'pick-baseline') {
+    return (
+      <BaselineSessionPicker
+        onConfirm={(bsid) => onSelect('rehabilitation', bsid ?? undefined)}
+        onCancel={() => setStep('pick-mode')}
+      />
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-subtle p-4">
       <div className="w-full max-w-lg">
@@ -58,7 +78,7 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({ onSelect }) => {
           {MODES.map(({ id, title, description, Icon, border, iconBg, iconColor }) => (
             <button
               key={id}
-              onClick={() => onSelect(id)}
+              onClick={() => handleModeClick(id)}
               className={cn(
                 'w-full flex items-center gap-4 rounded-xl border-2 bg-card p-5 text-left transition-all active:scale-[0.99]',
                 border,

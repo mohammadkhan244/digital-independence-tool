@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAssessment } from '@/hooks/useAssessment';
+import { useAssessment, computeAnalytics } from '@/hooks/useAssessment';
+import { loadAllSessions } from '@/hooks/useAssessmentPersistence';
 import { eadlModules, getModuleIcon } from '@/data/modules';
 import { PhoneFrame } from '@/components/phone/PhoneFrame';
 import { HomeScreen } from '@/components/phone/HomeScreen';
@@ -23,6 +24,7 @@ import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
 import { ModeSelection } from '@/components/assessment/ModeSelection';
 import { TherapistPanel, computeRehabCueResult } from '@/components/assessment/TherapistPanel';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +48,7 @@ import {
   AlertTriangle,
   Clock,
   Volume2,
+  Target,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType, CueLevel, AssessmentMode } from '@/types/assessment';
 
@@ -291,6 +294,7 @@ const Assessment: React.FC = () => {
 
   // â”€â”€ Mode selection (persists between ModeSelection and module entry) â”€â”€
   const [selectedMode, setSelectedMode] = useState<AssessmentMode | null>(null);
+  const [baselineSessionId, setBaselineSessionId] = useState<string | undefined>(undefined);
 
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [showModuleOverview, setShowModuleOverview] = useState(true);
@@ -334,6 +338,37 @@ const Assessment: React.FC = () => {
   const activeMode: AssessmentMode = session?.assessmentMode ?? selectedMode ?? 'assessment';
   const isRehabMode = activeMode === 'rehabilitation';
   const isReassessMode = activeMode === 'reassessment';
+
+  // Personalized rehab: load baseline analytics from a prior assessment session
+  const WEAK_THRESHOLD = 75;
+  const DIFFICULTY_RECOMMEND_THRESHOLD = 60;
+
+  const baselineAnalytics = useMemo(() => {
+    if (activeMode !== 'rehabilitation') return null;
+    const bsid = session?.baselineSessionId ?? baselineSessionId;
+    if (!bsid) return null;
+    const found = loadAllSessions().find(s => s.id === bsid);
+    return found ? computeAnalytics(found) : null;
+  }, [activeMode, session?.baselineSessionId, baselineSessionId]);
+
+  const baselineScoreMap = useMemo(() => {
+    const map = new Map<string, number>();
+    baselineAnalytics?.moduleScores.forEach(ms => map.set(ms.moduleId, ms.percentage));
+    return map;
+  }, [baselineAnalytics]);
+
+  const [focusWeakOnly, setFocusWeakOnly] = useState(false);
+
+  const displayModules = useMemo(() => {
+    let mods = [...eadlModules];
+    if (baselineAnalytics) {
+      mods.sort((a, b) => (baselineScoreMap.get(a.id) ?? 101) - (baselineScoreMap.get(b.id) ?? 101));
+    }
+    if (focusWeakOnly && baselineAnalytics) {
+      mods = mods.filter(m => (baselineScoreMap.get(m.id) ?? 0) <= WEAK_THRESHOLD);
+    }
+    return mods;
+  }, [baselineAnalytics, baselineScoreMap, focusWeakOnly]);
 
   // Effective showHint: in rehab, driven by cue count; otherwise simpleMode
   const effectiveShowHint = isRehabMode ? rehabShowHint : showHints;
@@ -642,13 +677,13 @@ const Assessment: React.FC = () => {
   const handleEnterSpecificModule = useCallback(
     (moduleIndex: number) => {
       if (!session) {
-        startAssessment(true, false, moduleIndex, selectedMode ?? 'assessment');
+        startAssessment(true, false, moduleIndex, selectedMode ?? 'assessment', baselineSessionId);
       } else {
         jumpToModule(moduleIndex);
       }
       setShowModuleOverview(false);
     },
-    [session, startAssessment, jumpToModule, selectedMode],
+    [session, startAssessment, jumpToModule, selectedMode, baselineSessionId],
   );
 
   const handleEnterModule = useCallback(() => {
@@ -724,7 +759,14 @@ const Assessment: React.FC = () => {
 
   // â”€â”€ Mode selection (only for fresh sessions, before module overview) â”€â”€â”€â”€â”€â”€â”€
   if (!savedProgressExists && !session && selectedMode === null) {
-    return <ModeSelection onSelect={setSelectedMode} />;
+    return (
+      <ModeSelection
+        onSelect={(mode, bsid) => {
+          setSelectedMode(mode);
+          setBaselineSessionId(bsid);
+        }}
+      />
+    );
   }
 
   // â”€â”€ Module overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -804,16 +846,43 @@ const Assessment: React.FC = () => {
             </div>
           </div>
 
+          {/* Focus-on-weak-areas toggle — rehab + baseline only */}
+          {baselineAnalytics && (
+            <div className="mb-4 flex items-center justify-between rounded-xl border bg-card px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Target className="h-4 w-4 text-chart-1" />
+                Focus on weak areas only
+                <span className="text-xs font-normal text-muted-foreground">(below {WEAK_THRESHOLD}%)</span>
+              </div>
+              <Switch checked={focusWeakOnly} onCheckedChange={setFocusWeakOnly} />
+            </div>
+          )}
+
+          {focusWeakOnly && displayModules.filter(m => !isModuleCompleted(m.id)).length === 0 && (
+            <p className="mb-4 text-center text-sm text-muted-foreground py-4">
+              All modules scored above {WEAK_THRESHOLD}%.{' '}
+              <button className="underline" onClick={() => setFocusWeakOnly(false)}>Show all modules</button>
+            </p>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
-            {eadlModules.map((module, index) => {
+            {displayModules.map((module) => {
+              const originalIndex = eadlModules.indexOf(module);
               const completed = isModuleCompleted(module.id);
               const remainingCount = eadlModules.filter(m => !isModuleCompleted(m.id)).length;
               const badgeLabel = completed ? 'Done' : remainingCount === 1 ? 'Up Next' : 'Available';
+              const baselinePct = baselineAnalytics ? baselineScoreMap.get(module.id) : undefined;
+              const baselinePillColor = baselinePct === undefined ? ''
+                : baselinePct < 50
+                  ? 'text-red-600 bg-red-50 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
+                  : baselinePct <= 75
+                  ? 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-800'
+                  : 'text-green-600 bg-green-50 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800';
 
               return (
                 <div
                   key={module.id}
-                  onClick={completed ? undefined : () => handleEnterSpecificModule(index)}
+                  onClick={completed ? undefined : () => handleEnterSpecificModule(originalIndex)}
                   className={cn(
                     'rounded-xl border p-5 transition-all',
                     completed
@@ -830,7 +899,7 @@ const Assessment: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-muted-foreground">Module {index + 1}</span>
+                        <span className="text-xs font-medium text-muted-foreground">Module {originalIndex + 1}</span>
                         <span className={cn('text-xs font-semibold', completed ? 'text-success' : 'text-primary')}>
                           {badgeLabel}
                         </span>
@@ -844,6 +913,17 @@ const Assessment: React.FC = () => {
                         <span>Â·</span>
                         <span>{estMins(module.steps.length)}</span>
                       </div>
+                      {baselinePct !== undefined && (
+                        <div className={cn('mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium', baselinePillColor)}>
+                          Last session: {Math.round(baselinePct)}%
+                        </div>
+                      )}
+                      {baselinePct !== undefined && baselinePct < DIFFICULTY_RECOMMEND_THRESHOLD && !completed && (
+                        <div className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                          Consider Simple mode for this module
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
