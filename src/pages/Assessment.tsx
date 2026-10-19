@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAssessment, computeAnalytics } from '@/hooks/useAssessment';
 import { loadAllSessions } from '@/hooks/useAssessmentPersistence';
-import { eadlModules, getModuleIcon } from '@/data/modules';
+import { eadlModules } from '@/data/modules';
 import { PhoneFrame } from '@/components/phone/PhoneFrame';
 import { HomeScreen } from '@/components/phone/HomeScreen';
 import { MessagesApp } from '@/components/phone/MessagesApp';
@@ -22,6 +22,7 @@ import {
 import { ScoringPanel } from '@/components/assessment/ScoringPanel';
 import { OpenEndedQuestion } from '@/components/assessment/OpenEndedQuestion';
 import { ModeSelection } from '@/components/assessment/ModeSelection';
+import { BaselineSessionPicker } from '@/components/assessment/BaselineSessionPicker';
 import { TherapistPanel, computeRehabCueResult } from '@/components/assessment/TherapistPanel';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -49,6 +50,17 @@ import {
   Clock,
   Volume2,
   Target,
+  Activity,
+  RefreshCw,
+  ClipboardCheck,
+  MessageSquare,
+  Heart,
+  Wallet,
+  ShoppingBag,
+  MapPin,
+  Star,
+  Home,
+  Smartphone,
 } from 'lucide-react';
 import { DifficultyMode, Score, ErrorType, CueLevel, AssessmentMode } from '@/types/assessment';
 
@@ -64,35 +76,50 @@ type MyChartScreen = 'results' | 'appointments' | 'messages';
 const comingSoonModules = [
   {
     name: 'Money Management',
-    icon: 'ðŸ’³',
+    icon: 'Wallet',
     category: 'Module 3',
     description: 'Use a banking app to check balances, pay bills, and handle security alerts.',
   },
   {
     name: 'Shopping & Pharmacy',
-    icon: 'ðŸ›’',
+    icon: 'ShoppingBag',
     category: 'Module 4',
     description: 'Order products online and manage pharmacy prescriptions.',
   },
   {
     name: 'Transportation & Navigation',
-    icon: 'ðŸ“',
+    icon: 'MapPin',
     category: 'Module 5',
     description: 'Use maps and ride-sharing apps to get around.',
   },
   {
     name: 'Social & Leisure',
-    icon: 'â–¶ï¸',
+    icon: 'Star',
     category: 'Module 6',
     description: 'Use streaming services and entertainment apps for everyday enjoyment.',
   },
   {
     name: 'Home & Safety',
-    icon: 'ðŸ›¡ï¸',
+    icon: 'Home',
     category: 'Module 7',
     description: 'Manage reminders, respond to alerts, and access emergency services.',
   },
 ];
+
+const MODULE_ICON_MAP: Record<string, React.ElementType> = {
+  MessageSquare,
+  Heart,
+  Wallet,
+  ShoppingBag,
+  MapPin,
+  Star,
+  Home,
+};
+
+function renderModuleIcon(iconName: string, className = 'h-6 w-6') {
+  const Icon = MODULE_ICON_MAP[iconName] ?? Smartphone;
+  return <Icon className={className} />;
+}
 
 // Step-by-step instructions per stepId (and reassessment variant)
 const STEP_BY_STEP: Record<string, string[]> = {
@@ -136,12 +163,12 @@ const STEP_BY_STEP: Record<string, string[]> = {
   ],
   'ehr-step1': [
     'Tap "Test Results" in the left-side menu',
-    'Find the "Complete Blood Count (CBC)" â€” the most recent result',
+    'Find the "Complete Blood Count (CBC)" — the most recent result',
     'Tap it to expand and view your lab values',
   ],
   'ehr-step1-r': [
     'Tap "Test Results" in the left-side menu',
-    'Find the "Lipid Panel" â€” the most recent result',
+    'Find the "Lipid Panel" — the most recent result',
     'Tap it to expand and view your lab values',
   ],
   'ehr-step2': [
@@ -292,9 +319,10 @@ const Assessment: React.FC = () => {
 
   const OVERRIDE_THRESHOLD = 5;
 
-  // â”€â”€ Mode selection (persists between ModeSelection and module entry) â”€â”€
+  // â"€â"€ Mode selection (persists between ModeSelection and module entry) â"€â"€
   const [selectedMode, setSelectedMode] = useState<AssessmentMode | null>(null);
   const [baselineSessionId, setBaselineSessionId] = useState<string | undefined>(undefined);
+  const [skipToMode, setSkipToMode] = useState<AssessmentMode | null>(null);
 
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [showModuleOverview, setShowModuleOverview] = useState(true);
@@ -310,11 +338,11 @@ const Assessment: React.FC = () => {
     moduleId: string;
   } | null>(null);
   const [showCongrats, setShowCongrats] = useState(false);
-  // Set to true when completeStep returns a session with endTime â€” used to
+  // Set to true when completeStep returns a session with endTime — used to
   // drive navigation without relying on async state closure.
   const [isAssessmentComplete, setIsAssessmentComplete] = useState(false);
 
-  // â”€â”€ Rehab mode state â”€â”€
+  // â"€â"€ Rehab mode state â"€â"€
   const [rehabCueCount, setRehabCueCount] = useState(0);
   const [rehabShowHint, setRehabShowHint] = useState(false);
   const [showDemoOverlay, setShowDemoOverlay] = useState(false);
@@ -376,21 +404,21 @@ const Assessment: React.FC = () => {
   // Target contact for SMS: 'son' in reassessment, 'daughter' otherwise
   const targetContactId = isReassessMode ? 'son' : 'daughter';
 
-  // Derived display strings â€” declared early so hooks can safely close over them
+  // Derived display strings — declared early so hooks can safely close over them
   const displayHint = currentStep
     ? (isReassessMode
         ? (currentStep.reassessmentHints?.[0] ?? currentStep.hints?.[0])
         : currentStep.hints?.[0])
     : undefined;
 
-  // â”€â”€ Resume prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Resume prompt â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   useEffect(() => {
     if (!isRunning && !session && savedProgressExists) {
       setShowResumePrompt(true);
     }
   }, [isRunning, session, savedProgressExists]);
 
-  // â”€â”€ Step synchronization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Step synchronization â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   useEffect(() => {
     if (!currentStep || !currentModule) return;
     setStepCompleted(false);
@@ -422,7 +450,7 @@ const Assessment: React.FC = () => {
     }
   }, [currentModule?.id, currentStep?.id]);
 
-  // â”€â”€ Rehab: success flash when task completes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Rehab: success flash when task completes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   useEffect(() => {
     if (stepCompleted && isRehabMode) {
       setShowSuccessFlash(true);
@@ -431,14 +459,14 @@ const Assessment: React.FC = () => {
     }
   }, [stepCompleted, isRehabMode]);
 
-  // â”€â”€ Cancel any ongoing speech when component unmounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Cancel any ongoing speech when component unmounts â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   useEffect(() => {
     return () => {
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     };
   }, []);
 
-  // â”€â”€ Reset sim to current step's initial state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Reset sim to current step's initial state â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const resetCurrentSim = useCallback(() => {
     if (!currentModule || !currentStep) return;
     const mid = currentModule.id;
@@ -461,7 +489,7 @@ const Assessment: React.FC = () => {
     setSimulatorResetKey(k => k + 1);
   }, [currentModule, currentStep]);
 
-  // â”€â”€ Step completion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Step completion â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleStepComplete = useCallback(
     (score: Score, cueLevel?: CueLevel, cueLabel?: string) => {
       const isLastStep =
@@ -480,7 +508,7 @@ const Assessment: React.FC = () => {
 
       if (isLastStep) {
         setShowCongrats(true);
-        // Use the synchronous return value â€” avoids closure staleness
+        // Use the synchronous return value — avoids closure staleness
         if (updatedSession?.endTime) {
           setIsAssessmentComplete(true);
         }
@@ -495,7 +523,7 @@ const Assessment: React.FC = () => {
     resetCurrentSim();
   }, [resetCurrentSim]);
 
-  // â”€â”€ Rehab cue delivery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Rehab cue delivery â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const giveNextCue = useCallback(() => {
     const next = rehabCueCount + 1;
     setRehabCueCount(next);
@@ -512,7 +540,7 @@ const Assessment: React.FC = () => {
     }
   }, [rehabCueCount, displayHint]);
 
-  // â”€â”€ Rehab confirmation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Rehab confirmation â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleRehabConfirm = useCallback(() => {
     const { level, label } = computeRehabCueResult(rehabCueCount);
     const score: Score = level === 3 ? 2 : level >= 1 ? 1 : 0;
@@ -523,7 +551,7 @@ const Assessment: React.FC = () => {
     handleStepComplete(0, 0 as CueLevel, 'Unable');
   }, [handleStepComplete]);
 
-  // â”€â”€ Patient override (skip task after 5+ misclicks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Patient override (skip task after 5+ misclicks) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handlePatientOverride = useCallback(() => {
     const isLastStep = currentModule != null && stepIndex >= currentModule.steps.length - 1;
     if (isLastStep && currentModule) {
@@ -554,7 +582,7 @@ const Assessment: React.FC = () => {
     return nextMod?.steps[0]?.instruction ?? null;
   })();
 
-  // â”€â”€ DC SMS handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ DC SMS handlers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleAppTap = useCallback(
     (appId: string) => {
       if (stepCompleted) return;
@@ -588,7 +616,7 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
-  // â”€â”€ DC Gmail handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ DC Gmail handler â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleGmailAction = useCallback(
     (action: string) => {
       if (stepCompleted) return;
@@ -600,7 +628,7 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
-  // â”€â”€ DC Telehealth handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ DC Telehealth handler â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleTelehealthAction = useCallback(
     (action: string) => {
       if (stepCompleted) return;
@@ -615,7 +643,7 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted, isReassessMode, currentWrongScreenCount],
   );
 
-  // â”€â”€ EHR MyChart handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ EHR MyChart handlers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleMyChartAction = useCallback(
     (action: string) => {
       if (stepCompleted) return;
@@ -636,7 +664,7 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
-  // â”€â”€ Misclick â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Misclick â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleMisclick = useCallback(
     (errorType: ErrorType = 'targeting') => {
       recordMisclick(errorType);
@@ -648,7 +676,7 @@ const Assessment: React.FC = () => {
     [recordMisclick, isRehabMode],
   );
 
-  // â”€â”€ Wrong-screen navigation (cross-app, from HomeScreen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Wrong-screen navigation (cross-app, from HomeScreen) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleWrongAppTap = useCallback(
     (appId: string) => {
       setWrongAppScreen(appId);
@@ -662,7 +690,7 @@ const Assessment: React.FC = () => {
     recordGoBack();
   }, [recordGoBack]);
 
-  // â”€â”€ Module overview helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Module overview helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const isModuleCompleted = useCallback(
     (moduleId: string): boolean => {
       if (!session) return false;
@@ -690,7 +718,7 @@ const Assessment: React.FC = () => {
     handleEnterSpecificModule(session ? session.currentModuleIndex : 0);
   }, [handleEnterSpecificModule, session]);
 
-  // â”€â”€ Open-ended response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Open-ended response â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleOpenEndedSubmit = useCallback(
     (response: string) => {
       if (completedModuleInfo) {
@@ -708,7 +736,7 @@ const Assessment: React.FC = () => {
     [setOpenEndedResponse, completedModuleInfo, isAssessmentComplete, navigate],
   );
 
-  // â”€â”€ Difficulty / restart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Difficulty / restart â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const toggleDifficulty = useCallback(() => {
     setDifficultyMode(simpleMode ? 'complex' : 'simple');
   }, [simpleMode, setDifficultyMode]);
@@ -737,7 +765,7 @@ const Assessment: React.FC = () => {
   const isModuleCompletePhase =
     (showCongrats || showOpenEnded) && completedModuleInfo != null;
 
-  // â”€â”€ Resume prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Resume prompt â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (showResumePrompt) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-subtle p-4">
@@ -757,7 +785,21 @@ const Assessment: React.FC = () => {
     );
   }
 
-  // â”€â”€ Mode selection (only for fresh sessions, before module overview) â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Mode selection (only for fresh sessions, before module overview) â"€â"€â"€â"€â"€â"€â"€
+  // Direct-to-baseline-picker bypass (used when switching from completion screen → rehab)
+  if (!savedProgressExists && !session && selectedMode === null && skipToMode === 'rehabilitation') {
+    return (
+      <BaselineSessionPicker
+        onConfirm={(bsid) => {
+          setSelectedMode('rehabilitation');
+          setBaselineSessionId(bsid);
+          setSkipToMode(null);
+        }}
+        onCancel={() => setSkipToMode(null)}
+      />
+    );
+  }
+
   if (!savedProgressExists && !session && selectedMode === null) {
     return (
       <ModeSelection
@@ -769,7 +811,7 @@ const Assessment: React.FC = () => {
     );
   }
 
-  // â”€â”€ Module overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Module overview â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (showModuleOverview) {
     const activeIndex = session ? session.currentModuleIndex : 0;
     const completedCount = eadlModules.filter(m => isModuleCompleted(m.id)).length;
@@ -797,7 +839,7 @@ const Assessment: React.FC = () => {
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {completedCount} of {eadlModules.length} modules complete
-                  {allDone ? '' : ' Â· 5 more coming soon'}
+                  {allDone ? '' : ' · 5 more coming soon'}
                 </p>
               </div>
             </div>
@@ -835,7 +877,7 @@ const Assessment: React.FC = () => {
             </h2>
             <p className="text-muted-foreground">
               {completedCount === 0
-                ? 'Tap either module below to begin â€” you can complete them in any order.'
+                ? 'Tap either module below to begin — you can complete them in any order.'
                 : completedCount === eadlModules.length
                 ? 'Both modules completed. Great work!'
                 : `${completedCount} of ${eadlModules.length} modules complete. Tap the remaining module to continue.`}
@@ -893,9 +935,9 @@ const Assessment: React.FC = () => {
                   <div className="flex items-start gap-4">
                     <div className={cn(
                       'flex h-12 w-12 items-center justify-center rounded-xl flex-shrink-0',
-                      completed ? 'bg-success/10' : 'bg-primary/10 text-2xl',
+                      completed ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary',
                     )}>
-                      {completed ? <CheckCircle2 className="h-6 w-6 text-success" /> : getModuleIcon(module.icon)}
+                      {completed ? <CheckCircle2 className="h-6 w-6" /> : renderModuleIcon(module.icon)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -910,7 +952,7 @@ const Assessment: React.FC = () => {
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{module.description}</p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{module.steps.length} tasks</span>
-                        <span>Â·</span>
+                        <span>·</span>
                         <span>{estMins(module.steps.length)}</span>
                       </div>
                       {baselinePct !== undefined && (
@@ -937,8 +979,8 @@ const Assessment: React.FC = () => {
                 style={{ opacity: 0.3 }}
               >
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-2xl flex-shrink-0">
-                    {mod.icon}
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground flex-shrink-0 opacity-40">
+                    {renderModuleIcon(mod.icon)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -961,17 +1003,69 @@ const Assessment: React.FC = () => {
               onClick={allDone ? () => navigate('/dashboard') : handleEnterModule}
               className="gap-2 px-8"
             >
-              {allDone ? 'View Results' : isFirst ? 'Begin Assessment' : `Continue â€” ${activeModule?.name}`}
+              {allDone ? 'View Results' : isFirst ? 'Begin Assessment' : `Continue — ${activeModule?.name}`}
               <ArrowRight className="h-5 w-5" />
             </Button>
 
+            {allDone && (
+              <div className="flex flex-wrap justify-center gap-2 mt-1">
+                {activeMode !== 'rehabilitation' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-chart-1 text-chart-1 hover:bg-chart-1/5"
+                    onClick={() => {
+                      resetAssessment();
+                      setIsAssessmentComplete(false);
+                      setSkipToMode('rehabilitation');
+                      setSelectedMode(null);
+                    }}
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                    New Rehab Session
+                  </Button>
+                )}
+                {activeMode !== 'reassessment' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-chart-2 text-chart-2 hover:bg-chart-2/5"
+                    onClick={() => {
+                      resetAssessment();
+                      setIsAssessmentComplete(false);
+                      setBaselineSessionId(undefined);
+                      setSelectedMode('reassessment');
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Start Reassessment
+                  </Button>
+                )}
+                {activeMode !== 'assessment' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => {
+                      resetAssessment();
+                      setIsAssessmentComplete(false);
+                      setBaselineSessionId(undefined);
+                      setSelectedMode('assessment');
+                    }}
+                  >
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    New Assessment
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
     );
   }
 
-  // â”€â”€ Loading guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Loading guard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   if (!isModuleCompletePhase && (!session || !currentModule || !currentStep)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -987,7 +1081,7 @@ const Assessment: React.FC = () => {
   const headerSubtitle = isModuleCompletePhase ? 'Module Complete' : `Step ${stepIndex + 1} of ${currentModule?.steps.length}`;
   const modeBadge = MODE_BADGE[activeMode];
 
-  // Safe access â€” currentStep is undefined after last step while congrats/OEQ shows
+  // Safe access — currentStep is undefined after last step while congrats/OEQ shows
   const displayInstruction = currentStep
     ? (isReassessMode
         ? (currentStep.reassessmentInstruction ?? currentStep.instruction)
@@ -999,7 +1093,7 @@ const Assessment: React.FC = () => {
     : '';
   const stepByStepSteps = STEP_BY_STEP[sysKey] ?? [];
 
-  // â”€â”€ Active assessment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â"€â"€ Active assessment â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   return (
     <div className={cn(
       'bg-background',
@@ -1154,7 +1248,7 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
-            {/* Step-by-step checklist â€” rendered above simulator, never overlaid */}
+            {/* Step-by-step checklist — rendered above simulator, never overlaid */}
             {showStepByStep && stepByStepSteps.length > 0 && (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
                 <p className="text-sm font-semibold text-foreground mb-3">Step-by-Step Instructions</p>
@@ -1171,10 +1265,10 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
-            {/* â”€â”€ Digital Communications simulator â”€â”€ */}
+            {/* â"€â"€ Digital Communications simulator â"€â"€ */}
             {isDCModule && (
               <div className="isolate space-y-2">
-                {/* Persistent "wrong app" banner â€” shown when patient navigated off-task */}
+                {/* Persistent "wrong app" banner — shown when patient navigated off-task */}
                 {wrongAppScreen && (
                   <div className="space-y-1.5">
                     <button
@@ -1182,14 +1276,14 @@ const Assessment: React.FC = () => {
                       className="w-full flex items-center justify-center gap-2 rounded-lg bg-orange-500 hover:bg-orange-600 active:bg-orange-700 px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors"
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Wrong app â€” tap to return to task
+                      Wrong app — tap to return to task
                     </button>
                     {currentStepMisclicks >= OVERRIDE_THRESHOLD && !stepCompleted && (
                       <button
                         onClick={handlePatientOverride}
                         className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors"
                       >
-                        OVERRIDE â€” skip this task
+                        OVERRIDE — skip this task
                       </button>
                     )}
                   </div>
@@ -1279,7 +1373,7 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
-            {/* â”€â”€ EHR simulator â”€â”€ */}
+            {/* â"€â"€ EHR simulator â"€â"€ */}
             {isEHRModule && (
               <div className="relative rounded-xl border shadow-xl overflow-hidden isolate">
                 {showDemoOverlay && (
@@ -1302,7 +1396,7 @@ const Assessment: React.FC = () => {
               </div>
             )}
 
-            {/* Scoring panel â€” hidden in rehab mode (TherapistPanel handles confirmation) */}
+            {/* Scoring panel — hidden in rehab mode (TherapistPanel handles confirmation) */}
             {!isRehabMode && (
               currentStepMisclicks >= OVERRIDE_THRESHOLD && !stepCompleted ? (
                 <div className="p-4 border-t bg-background">
@@ -1342,7 +1436,7 @@ const Assessment: React.FC = () => {
         )}
       </main>
 
-      {/* Therapist panel â€” sticky bottom bar in rehab mode */}
+      {/* Therapist panel — sticky bottom bar in rehab mode */}
       {isRehabMode && !isModuleCompletePhase && (
         <TherapistPanel
           cueCount={rehabCueCount}
