@@ -846,7 +846,7 @@ const Assessment: React.FC = () => {
             {completedCount > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-950/40">
+                  <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-700 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-950/40 dark:hover:text-orange-400">
                     <RotateCcw className="h-3.5 w-3.5" />
                     New Patient
                   </Button>
@@ -936,7 +936,7 @@ const Assessment: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 gap-1.5"
+                    className="flex-1 gap-1.5 hover:text-foreground"
                     onClick={() => {
                       resetAssessment();
                       setIsAssessmentComplete(false);
