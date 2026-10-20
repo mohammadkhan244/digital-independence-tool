@@ -73,7 +73,11 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
 
   const handleSend = () => {
     if (messageText.trim()) {
-      onSendMessage?.(messageText);
+      if (selectedContact?.id === targetContact) {
+        onSendMessage?.(messageText);
+      } else {
+        onMisclick?.();
+      }
       setMessageText('');
     }
   };
@@ -107,6 +111,15 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
           </div>
           <div className="w-16" />
         </div>
+
+        {/* Wrong-contact warning */}
+        {selectedContact?.id !== targetContact && simpleMode && showHint && (
+          <div className="border-b border-orange-200 bg-orange-50 px-4 py-2 text-center">
+            <p className="text-xs font-semibold text-orange-700">
+              Wrong contact — tap Back and select the correct person
+            </p>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
