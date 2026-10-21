@@ -42,7 +42,7 @@ const Index: React.FC = () => {
               eADL Assessment Tool v1.0
             </div>
             <h1 className="mb-4 text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl">
-              Electronic Activities of
+              Digital Activities of
               <span className="block text-primary">Daily Living Assessment</span>
             </h1>
             <p className="mb-8 text-lg text-muted-foreground md:text-xl leading-relaxed">
@@ -170,7 +170,7 @@ const Index: React.FC = () => {
         <div className="container px-4">
           <div className="mb-10 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-2">Assessment Modules</h2>
-            <p className="text-muted-foreground">Covering essential electronic activities of daily living</p>
+            <p className="text-muted-foreground">Covering essential digital activities of daily living</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {eadlModules.map((module, index) => (

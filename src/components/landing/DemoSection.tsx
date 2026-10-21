@@ -242,8 +242,8 @@ export const DemoSection: React.FC = () => {
   // ── Task ──────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* Task instruction card */}
-      <div className="rounded-xl border bg-card p-4 shadow-sm">
+      {/* Task instruction card — sticky so it stays visible while scrolling the phone */}
+      <div className="sticky top-4 z-10 rounded-xl border bg-card p-4 shadow-sm">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Your task</p>
         <p className="font-semibold text-foreground text-base leading-snug">
           Text your daughter to let her know your appointment time.
