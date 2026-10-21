@@ -8,12 +8,12 @@ import Index from "./pages/Index";
 import Assessment from "./pages/Assessment";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
-import { FontSizeSetup } from "./components/FontSizeSetup";
+import { FontSizeSetup, TEXT_SIZE_KEY } from "./components/FontSizeSetup";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [setupDone, setSetupDone] = useState(() => !!localStorage.getItem('eadl_font_size'));
+  const [setupDone, setSetupDone] = useState(() => !!localStorage.getItem(TEXT_SIZE_KEY));
 
   if (!setupDone) {
     return <FontSizeSetup onComplete={() => setSetupDone(true)} />;

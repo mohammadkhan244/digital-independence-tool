@@ -1,33 +1,50 @@
 import React, { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Type } from 'lucide-react';
 
-const FONT_KEY = 'eadl_font_size';
+export type TextSizeLevel = 'normal' | 'large' | 'x-large';
+export const TEXT_SIZE_KEY = 'eadl_text_size';
+
+const LEVELS: { value: TextSizeLevel; label: string }[] = [
+  { value: 'normal',  label: 'Normal' },
+  { value: 'large',   label: 'Large' },
+  { value: 'x-large', label: 'X-Large' },
+];
+
+export function applyTextSize(level: TextSizeLevel) {
+  document.documentElement.style.fontSize = ''; // clear old approach
+  if (level === 'normal') {
+    document.documentElement.removeAttribute('data-text-size');
+  } else {
+    document.documentElement.setAttribute('data-text-size', level);
+  }
+}
 
 interface FontSizeSetupProps {
   onComplete: () => void;
 }
 
 export const FontSizeSetup: React.FC<FontSizeSetupProps> = ({ onComplete }) => {
-  const [pct, setPct] = useState(100);
+  const [step, setStep] = useState(1); // 1 = normal, 2 = large, 3 = x-large
 
   useEffect(() => {
-    document.documentElement.style.fontSize = `${pct}%`;
-  }, [pct]);
+    applyTextSize(LEVELS[step - 1].value);
+  }, [step]);
 
   const confirm = () => {
-    localStorage.setItem(FONT_KEY, `${pct}%`);
+    const level = LEVELS[step - 1].value;
+    localStorage.setItem(TEXT_SIZE_KEY, level);
+    localStorage.removeItem('eadl_font_size'); // remove old key
     onComplete();
   };
 
   const skip = () => {
-    document.documentElement.style.fontSize = '100%';
-    localStorage.setItem(FONT_KEY, '100%');
+    applyTextSize('normal');
+    localStorage.setItem(TEXT_SIZE_KEY, 'normal');
+    localStorage.removeItem('eadl_font_size');
     onComplete();
   };
-
-  const label =
-    pct === 100 ? 'Default size' : pct < 100 ? `${100 - pct}% smaller` : `${pct - 100}% larger`;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
@@ -42,31 +59,49 @@ export const FontSizeSetup: React.FC<FontSizeSetupProps> = ({ onComplete }) => {
           </p>
         </div>
 
+        {/* Sample text — uses standard Tailwind classes so it reflects the live override */}
         <div className="mb-6 rounded-xl border bg-card p-5 shadow-sm">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Sample text
           </p>
-          <p className="leading-relaxed text-foreground">
-            Open Messages, find Emma (Daughter), and send her a text message letting her know
-            your appointment time.
+          <p className="text-base leading-relaxed text-foreground">
+            Open Messages, find Emma (Daughter), and send her a text message letting her
+            know your appointment time.
           </p>
         </div>
 
+        {/* A — A — A size markers (fixed px so they don't scale with the override) */}
         <div className="mb-1 flex items-center justify-between px-1">
           <span className="font-semibold text-muted-foreground" style={{ fontSize: '13px' }}>A</span>
-          <span className="font-semibold text-muted-foreground" style={{ fontSize: '22px' }}>A</span>
+          <span className="font-semibold text-muted-foreground" style={{ fontSize: '18px' }}>A</span>
+          <span className="font-semibold text-muted-foreground" style={{ fontSize: '24px' }}>A</span>
         </div>
+
         <input
           type="range"
-          min={80}
-          max={175}
-          step={5}
-          value={pct}
-          onChange={(e) => setPct(Number(e.target.value))}
+          min={1}
+          max={3}
+          step={1}
+          value={step}
+          onChange={(e) => setStep(Number(e.target.value))}
           className="w-full cursor-pointer accent-primary"
           aria-label="Text size"
         />
-        <p className="mb-6 mt-2 text-center text-xs text-muted-foreground">{label}</p>
+
+        {/* Tick labels */}
+        <div className="mt-1 mb-6 flex justify-between px-1">
+          {LEVELS.map((level, i) => (
+            <span
+              key={level.value}
+              className={cn(
+                'text-xs font-medium',
+                step === i + 1 ? 'text-primary font-semibold' : 'text-muted-foreground',
+              )}
+            >
+              {level.label}
+            </span>
+          ))}
+        </div>
 
         <Button size="lg" className="mb-3 w-full" onClick={confirm}>
           Looks Good!

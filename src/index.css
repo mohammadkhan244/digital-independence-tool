@@ -266,6 +266,37 @@
   }
 }
 
+/* ── Text-size accessibility overrides ──────────────────────────────────────
+   These rules live outside @layer so they have higher cascade priority than
+   Tailwind's generated utilities. They target Tailwind text classes directly,
+   increasing only font-size/line-height — padding, margins, and layout
+   dimensions (all rem-based) are intentionally left unchanged so the page
+   layout stays stable and doesn't "zoom".
+   Applied via html[data-text-size] attribute set in main.tsx / FontSizeSetup.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+html[data-text-size="large"] .text-xs   { font-size: 0.875rem; line-height: 1.25rem; }
+html[data-text-size="large"] .text-sm   { font-size: 1rem;     line-height: 1.5rem; }
+html[data-text-size="large"] .text-base { font-size: 1.2rem;   line-height: 1.75rem; }
+html[data-text-size="large"] .text-lg   { font-size: 1.35rem;  line-height: 1.875rem; }
+html[data-text-size="large"] .text-xl   { font-size: 1.5rem;   line-height: 2rem; }
+html[data-text-size="large"] .text-2xl  { font-size: 1.75rem;  line-height: 2.25rem; }
+html[data-text-size="large"] .text-3xl  { font-size: 2.1rem;   line-height: 2.5rem; }
+html[data-text-size="large"] .text-4xl  { font-size: 2.5rem;   line-height: 3rem; }
+html[data-text-size="large"] .text-5xl  { font-size: 3rem;     line-height: 1.1; }
+html[data-text-size="large"] .text-6xl  { font-size: 3.75rem;  line-height: 1; }
+
+html[data-text-size="x-large"] .text-xs   { font-size: 1rem;     line-height: 1.5rem; }
+html[data-text-size="x-large"] .text-sm   { font-size: 1.125rem; line-height: 1.625rem; }
+html[data-text-size="x-large"] .text-base { font-size: 1.35rem;  line-height: 2rem; }
+html[data-text-size="x-large"] .text-lg   { font-size: 1.5rem;   line-height: 2.1rem; }
+html[data-text-size="x-large"] .text-xl   { font-size: 1.75rem;  line-height: 2.25rem; }
+html[data-text-size="x-large"] .text-2xl  { font-size: 2rem;     line-height: 2.5rem; }
+html[data-text-size="x-large"] .text-3xl  { font-size: 2.4rem;   line-height: 2.75rem; }
+html[data-text-size="x-large"] .text-4xl  { font-size: 2.8rem;   line-height: 3.25rem; }
+html[data-text-size="x-large"] .text-5xl  { font-size: 3.5rem;   line-height: 1.1; }
+html[data-text-size="x-large"] .text-6xl  { font-size: 4.25rem;  line-height: 1; }
+
 @media print {
   /* Hide navigation and action buttons */
   header,
