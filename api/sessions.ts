@@ -27,12 +27,17 @@ export default async function handler(request: Request): Promise<Response> {
     const participantId = session.participantId as string;
     const mode          = (session.assessmentMode as string) ?? 'assessment';
 
-    await Promise.all([
-      kv.set(`session:${sessionId}`, session),
-      kv.sadd(`sessions:participant:${participantId}`, sessionId),
-      kv.sadd(`sessions:mode:${mode}`, sessionId),
-      kv.sadd('sessions:all', sessionId),
-    ]);
+    try {
+      await Promise.all([
+        kv.set(`session:${sessionId}`, session),
+        kv.sadd(`sessions:participant:${participantId}`, sessionId),
+        kv.sadd(`sessions:mode:${mode}`, sessionId),
+        kv.sadd('sessions:all', sessionId),
+      ]);
+    } catch {
+      // KV unavailable — session is already safe in client localStorage
+      return new Response(JSON.stringify({ success: false, fallback: true }), { status: 200, headers });
+    }
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers });
   }
@@ -64,7 +69,12 @@ export default async function handler(request: Request): Promise<Response> {
       return new Response(JSON.stringify({ sessions: [] }), { status: 200, headers });
     }
 
-    const sessions = await Promise.all(sessionIds.map(id => kv.get(`session:${id}`)));
+    let sessions: unknown[];
+    try {
+      sessions = await Promise.all(sessionIds.map(id => kv.get(`session:${id}`)));
+    } catch {
+      return new Response(JSON.stringify({ sessions: [] }), { status: 200, headers });
+    }
 
     return new Response(
       JSON.stringify({ sessions: sessions.filter(Boolean) }),
