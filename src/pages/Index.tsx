@@ -18,7 +18,7 @@ import {
   Shield,
 } from 'lucide-react';
 
-const FounderPhoto: React.FC<{ src: string; initials: string }> = ({ src, initials }) => {
+const FounderPhoto: React.FC<{ src: string; initials: string; objectPosition?: string }> = ({ src, initials, objectPosition = 'center' }) => {
   const [failed, setFailed] = React.useState(false);
   if (failed) {
     return (
@@ -32,6 +32,7 @@ const FounderPhoto: React.FC<{ src: string; initials: string }> = ({ src, initia
       src={src}
       alt={initials}
       onError={() => setFailed(true)}
+      style={{ objectPosition }}
       className="h-28 w-28 rounded-full object-cover ring-4 ring-primary/20 shrink-0"
     />
   );
@@ -317,7 +318,7 @@ const Index: React.FC = () => {
 
               {/* Rafay Khan */}
               <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col items-center text-center gap-4">
-                <FounderPhoto src="/rafay.png" initials="RK" />
+                <FounderPhoto src="/rafay.png" initials="RK" objectPosition="center 15%" />
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Rafay Khan</h3>
                   <p className="text-xs font-semibold text-primary uppercase tracking-wide mt-0.5 mb-3">
