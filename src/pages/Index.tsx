@@ -317,7 +317,7 @@ const Index: React.FC = () => {
 
               {/* Rafay Khan */}
               <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col items-center text-center gap-4">
-                <FounderPhoto src="/rafay.jpg" initials="RK" />
+                <FounderPhoto src="/rafay.png" initials="RK" />
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Rafay Khan</h3>
                   <p className="text-xs font-semibold text-primary uppercase tracking-wide mt-0.5 mb-3">
@@ -337,7 +337,7 @@ const Index: React.FC = () => {
 
               {/* Mohammad Khan */}
               <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col items-center text-center gap-4">
-                <FounderPhoto src="/mohammad.jpg" initials="MK" />
+                <FounderPhoto src="/mohammad.png" initials="MK" />
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Mohammad Khan</h3>
                   <p className="text-xs font-semibold text-primary uppercase tracking-wide mt-0.5 mb-3">
