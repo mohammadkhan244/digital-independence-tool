@@ -18,6 +18,25 @@ import {
   Shield,
 } from 'lucide-react';
 
+const FounderPhoto: React.FC<{ src: string; initials: string }> = ({ src, initials }) => {
+  const [failed, setFailed] = React.useState(false);
+  if (failed) {
+    return (
+      <div className="h-28 w-28 rounded-full bg-primary/10 ring-4 ring-primary/20 flex items-center justify-center shrink-0">
+        <span className="text-2xl font-bold text-primary">{initials}</span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={initials}
+      onError={() => setFailed(true)}
+      className="h-28 w-28 rounded-full object-cover ring-4 ring-primary/20 shrink-0"
+    />
+  );
+};
+
 const Index: React.FC = () => {
   const navigate = useNavigate();
   const [adaptiveMode, setAdaptiveMode] = useState(true);
@@ -240,6 +259,100 @@ const Index: React.FC = () => {
                 <div className="font-semibold text-foreground">Unable</div>
                 <div className="text-xs text-muted-foreground mt-1">Could not complete</div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── About Platform ── white card */}
+      <section className="bg-card py-14" id="about">
+        <div className="container px-4">
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-8 text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">About the DADL Platform</h2>
+            </div>
+            <div className="space-y-4 text-muted-foreground leading-relaxed">
+              <p>
+                A patient recovering from a stroke once told co-founder Rafay Khan that being able to
+                text their family mattered as much as their ability to walk again. Even if their arm and
+                hand strength returned, they explained, being unable to use their phone would still mean
+                losing an important part of their independence.
+              </p>
+              <p>
+                That conversation became the starting point for the Digital Activities of Daily Living
+                (DADL) Assessment and Rehabilitation Platform. We asked whether assessing DADLs could
+                capture functional outcomes that conventional neurological scores and examinations might miss.
+              </p>
+              <p>
+                The platform currently includes texting tasks and a simulated patient portal, bringing
+                together task-based assessment, rehabilitation practice, and reassessment. It is designed
+                to help identify where patients encounter difficulty, provide opportunities to practice
+                these skills, and track performance over time.
+              </p>
+              <p>
+                Patient feedback sparked this project and continues to guide its development. Conversations
+                with patients, clinicians, and developers have helped us refine the tasks, recognize gaps,
+                and prepare for a clinical pilot. We want the platform to reflect what patients themselves
+                consider meaningful progress, including the everyday activities they most want to regain.
+              </p>
+              <p>
+                The platform is currently in the prototype phase, with pilot study preparation and the
+                required institutional review process underway. Our initial focus is on people recovering
+                from stroke or traumatic brain injury, with the broader goal of supporting patients across
+                a range of conditions and abilities.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── About Founders ── muted bg */}
+      <section className="bg-muted py-14">
+        <div className="container px-4">
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-10 text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">About the Co-Founders</h2>
+            </div>
+            <div className="grid gap-8 sm:grid-cols-2">
+
+              {/* Rafay Khan */}
+              <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col items-center text-center gap-4">
+                <FounderPhoto src="/rafay.jpg" initials="RK" />
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Rafay Khan</h3>
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mt-0.5 mb-3">
+                    Co-Founder
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    A fourth-year medical student at New York Medical College pursuing residency training
+                    in neurology. His interests span neurointervention, neurotechnology, and
+                    brain-computer interfaces, with a focus on translating advances in treatment into
+                    meaningful everyday independence. At the 2026 New York Brain-Computer Interface (BCI)
+                    Symposium, he will participate in the main panel, "BCIs as a System of Care,"
+                    discussing the role of practical, patient-centered digital function in evaluating BCI
+                    outcomes.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mohammad Khan */}
+              <div className="rounded-xl border bg-card p-6 shadow-sm flex flex-col items-center text-center gap-4">
+                <FounderPhoto src="/mohammad.jpg" initials="MK" />
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Mohammad Khan</h3>
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wide mt-0.5 mb-3">
+                    Co-Founder
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    A robotics engineer with experience in the medical device and assistive technology
+                    space since 2019. During undergrad, he helped found the Accessible Prosthetics
+                    Initiative whose mission was to increase access to prosthetics in the Columbus, Ohio
+                    area. At Battelle, he prototyped a modular attachment for upper limb prosthetic arms.
+                    Now, he works at a robotic welding company.
+                  </p>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
