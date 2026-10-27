@@ -246,12 +246,12 @@ export const DemoSection: React.FC = () => {
       <div className="sticky top-4 z-30 max-h-[35vh] overflow-y-auto rounded-xl border bg-card p-4 shadow-md">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Your task</p>
         <p className="font-semibold text-foreground text-base leading-snug">
-          Text your daughter to let her know your appointment time.
+          Your doctor's appointment is tomorrow at 2:00 PM. Text your daughter Emma to let her know.
         </p>
         <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2">
           <span className="text-amber-500 text-sm mt-0.5 shrink-0">⚠</span>
           <p className="text-xs text-amber-800 dark:text-amber-300">
-            Open Messages, find Emma (Daughter), and send her a text message
+            Open Messages, find Emma (Daughter), and send her a message about the appointment
           </p>
         </div>
       </div>
@@ -333,6 +333,11 @@ export const DemoSection: React.FC = () => {
               onContactSelect={() => {}}
               onSendMessage={() => finishDemo(false)}
               onMisclick={() => setTargetErrors(p => p + 1)}
+              validateMessage={(text) => {
+                const t = text.toLowerCase();
+                const ok = /\d/.test(t) || ['appointment', 'appt', 'doctor', 'dr.', 'dr ', 'visit'].some(k => t.includes(k));
+                return ok ? null : 'Your message should mention the appointment time. Try again.';
+              }}
               targetContact="daughter"
               simpleMode
               showHint

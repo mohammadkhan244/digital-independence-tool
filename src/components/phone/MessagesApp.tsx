@@ -33,6 +33,7 @@ interface MessagesAppProps {
   onMisclick?: () => void;
   onWrongContactNav?: (contactName: string) => void;
   onGoBackFromWrong?: () => void;
+  validateMessage?: (text: string) => string | null;
   targetContact?: string;
   simpleMode?: boolean;
   showHint?: boolean;
@@ -47,6 +48,7 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
   onMisclick,
   onWrongContactNav,
   onGoBackFromWrong,
+  validateMessage,
   targetContact = 'dr-smith',
   simpleMode = true,
   showHint = false,
@@ -60,6 +62,7 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
     currentStep === 'conversation' ? contactList.find(c => c.id === targetContact) || null : null
   );
   const [messageText, setMessageText] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleContactTap = (contact: Contact) => {
     setSelectedContact(contact);
@@ -72,14 +75,22 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
   };
 
   const handleSend = () => {
-    if (messageText.trim()) {
-      if (selectedContact?.id === targetContact) {
-        onSendMessage?.(messageText);
-      } else {
-        onMisclick?.();
+    if (!messageText.trim()) return;
+    if (selectedContact?.id === targetContact) {
+      if (validateMessage) {
+        const error = validateMessage(messageText);
+        if (error) {
+          setValidationError(error);
+          onMisclick?.();
+          return;
+        }
       }
-      setMessageText('');
+      setValidationError(null);
+      onSendMessage?.(messageText);
+    } else {
+      onMisclick?.();
     }
+    setMessageText('');
   };
 
   const displayContacts = simpleMode ? contactList.slice(0, 4) : contactList;
@@ -185,17 +196,12 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
               <input
                 type="text"
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder={simpleMode
-                    ? selectedContact?.id === 'son'
-                      ? 'Type: Yes, I received the prescription'
-                      : selectedContact?.id === 'daughter'
-                      ? 'Type: My appointment is July 18 at 2:30 PM'
-                      : 'Type: Confirming my appointment'
-                    : 'Message'}
+                onChange={(e) => { setMessageText(e.target.value); setValidationError(null); }}
+                placeholder="Type your message..."
                 className={cn(
                   "w-full rounded-full border bg-white px-4 py-3 outline-none focus:border-blue-500",
-                  simpleMode ? "text-base" : "text-sm"
+                  simpleMode ? "text-base" : "text-sm",
+                  validationError && "border-red-400"
                 )}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               />
@@ -215,7 +221,11 @@ export const MessagesApp: React.FC<MessagesAppProps> = ({
             </button>
           </div>
           
-          {simpleMode && (
+          {validationError ? (
+            <p className="mt-2 text-center text-xs font-semibold text-red-600">
+              {validationError}
+            </p>
+          ) : simpleMode && (
             <p className="mt-2 text-center text-sm text-gray-500">
               Type your message and tap the blue send button
             </p>

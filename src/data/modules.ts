@@ -10,8 +10,8 @@ export const eadlModules: ModuleDefinition[] = [
       {
         id: 'dc-step1',
         shortLabel: 'Send text message',
-        instruction: 'Text your daughter to let her know your appointment time.',
-        reassessmentInstruction: 'Text your son to confirm you received the prescription.',
+        instruction: "Your doctor's appointment is tomorrow at 2:00 PM. Text your daughter Emma to let her know.",
+        reassessmentInstruction: "The pharmacy called — your prescription is ready for pickup. Text your son Michael to let him know.",
         reassessmentHints: ['Open Messages, find Michael (Son), and send him a text message'],
         targetElement: 'messages-daughter',
         expectedAction: 'send_sms',

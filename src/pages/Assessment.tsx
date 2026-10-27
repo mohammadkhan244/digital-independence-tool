@@ -616,6 +616,23 @@ const Assessment: React.FC = () => {
     [currentStep, stepCompleted, currentWrongScreenCount],
   );
 
+  const messageValidator = useMemo(() => {
+    if (currentStep?.id !== 'dc-step1') return undefined;
+    if (isReassessMode) {
+      return (text: string): string | null => {
+        const t = text.toLowerCase();
+        const ok = ['prescription', 'rx', 'medicine', 'medication', 'pharmacy',
+                    'pickup', 'pick up', 'received', 'got it', 'have it'].some(k => t.includes(k));
+        return ok ? null : 'Your message should mention the prescription or pickup. Try again.';
+      };
+    }
+    return (text: string): string | null => {
+      const t = text.toLowerCase();
+      const ok = /\d/.test(t) || ['appointment', 'appt', 'doctor', 'dr.', 'dr ', 'visit'].some(k => t.includes(k));
+      return ok ? null : 'Your message should mention the appointment time. Try again.';
+    };
+  }, [currentStep?.id, isReassessMode]);
+
   // â"€â"€ DC Gmail handler â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   const handleGmailAction = useCallback(
     (action: string) => {
@@ -1336,6 +1353,7 @@ const Assessment: React.FC = () => {
                         onMisclick={() => handleMisclick('targeting')}
                         onWrongContactNav={(name) => recordWrongScreenNav(`messages-${name}`)}
                         onGoBackFromWrong={recordGoBack}
+                        validateMessage={messageValidator}
                         targetContact={targetContactId}
                         simpleMode={simpleMode}
                         showHint={effectiveShowHint}
