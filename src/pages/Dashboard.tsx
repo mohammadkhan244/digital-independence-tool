@@ -147,7 +147,9 @@ const Dashboard: React.FC = () => {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href = url;
-    a.download = `eadl-assessment-${activeSession.id}.csv`;
+    const d = new Date(activeSession.startTime);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    a.download = `DIAL_${activeSession.participantId}_${activeSession.assessmentMode}_${dateStr}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -202,7 +204,7 @@ const Dashboard: React.FC = () => {
             </Button>
 
             <div className="flex-1 min-w-0">
-              <h1 className="font-semibold text-foreground leading-tight">Assessment Results</h1>
+              <h1 className="font-semibold text-foreground leading-tight">DIAL Results</h1>
               <p className="text-xs text-muted-foreground truncate">
                 {activeSession ? `Participant ${activeSession.participantId}` : 'No session selected'}
               </p>
@@ -410,6 +412,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* ── Disclaimer ───────────────────────────────────────────────────── */}
+        <p className="text-center text-xs text-muted-foreground pb-2">
+          DIAL is a research prototype. Scoring thresholds have not been clinically validated.
+        </p>
       </main>
     </div>
   );

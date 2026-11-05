@@ -59,15 +59,16 @@ const Index: React.FC = () => {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
               <Sparkles className="h-4 w-4" />
-              eADL Assessment Tool v1.0
+              DIAL
             </div>
-            <h1 className="mb-4 text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl">
-              Digital Activities of
-              <span className="block text-primary">Daily Living Assessment</span>
+            <h1 className="mb-2 text-5xl font-bold tracking-tight text-foreground md:text-6xl lg:text-7xl">
+              DIAL
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground md:text-xl leading-relaxed">
-              Interactive evaluation of technology skills for post-stroke patients using
-              simulated smartphone and web interfaces.
+            <p className="mb-4 text-lg font-semibold text-primary md:text-xl">
+              Digital Independence Assessment &amp; Learning
+            </p>
+            <p className="mb-8 text-lg text-muted-foreground leading-relaxed">
+              Assess, practice, and reassess digital independence.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button size="lg" onClick={handleStartAssessment} className="gap-2 text-base min-h-[48px]">
@@ -205,7 +206,7 @@ const Index: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="mb-1">
                       <span className="text-xs font-semibold text-primary/70 uppercase tracking-wide">
-                        eADL {index + 1}
+                        Module {index + 1}
                       </span>
                     </div>
                     <h3 className="font-semibold text-foreground">{module.name}</h3>
@@ -270,7 +271,10 @@ const Index: React.FC = () => {
         <div className="container px-4">
           <div className="mx-auto max-w-3xl">
             <div className="mb-8 text-center">
-              <h2 className="text-2xl font-bold text-foreground mb-2">About the DADL Platform</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-2">About DIAL</h2>
+            </div>
+            <div className="mb-6 rounded-lg border border-muted bg-muted/40 px-4 py-3 text-sm text-muted-foreground italic">
+              DIAL is being developed and initially evaluated with post-stroke patients. Findings may not generalize to other populations.
             </div>
             <div className="space-y-4 text-muted-foreground leading-relaxed">
               <p>
@@ -363,7 +367,7 @@ const Index: React.FC = () => {
       <footer className="bg-secondary border-t py-8">
         <div className="container px-4 text-center">
           <p className="text-sm text-secondary-foreground font-medium">
-            eADL Assessment Tool • For research and clinical use
+            DIAL - Digital Independence Assessment &amp; Learning
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             Data is stored locally. No information is transmitted without explicit consent.

@@ -849,7 +849,7 @@ const Assessment: React.FC = () => {
               </Button>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="font-semibold text-foreground">eADL Assessment</h1>
+                  <h1 className="font-semibold text-foreground">DIAL</h1>
                   <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', modeBadge.cls)}>
                     {modeBadge.label}
                   </span>

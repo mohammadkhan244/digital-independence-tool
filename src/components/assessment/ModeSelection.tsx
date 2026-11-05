@@ -20,7 +20,7 @@ const MODES: {
   {
     id: 'assessment',
     title: 'Assessment Mode',
-    description: 'Standardized evaluation. No hints or assistance.',
+    description: 'Establish a baseline. No hints or assistance.',
     Icon: ClipboardCheck,
     border: 'border-primary hover:bg-primary/5',
     iconBg: 'bg-primary/10',
@@ -29,7 +29,7 @@ const MODES: {
   {
     id: 'rehabilitation',
     title: 'Rehabilitation Mode',
-    description: 'Guided practice with therapist-delivered cues.',
+    description: 'Guided practice with cues, until the skill sticks.',
     Icon: Activity,
     border: 'border-chart-1 hover:bg-chart-1/5',
     iconBg: 'bg-chart-1/10',
@@ -38,7 +38,7 @@ const MODES: {
   {
     id: 'reassessment',
     title: 'Reassessment Mode',
-    description: 'Follow-up evaluation with alternate task content.',
+    description: 'Measure change with alternate task content.',
     Icon: RefreshCw,
     border: 'border-chart-2 hover:bg-chart-2/5',
     iconBg: 'bg-chart-2/10',
