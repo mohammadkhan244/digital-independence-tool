@@ -284,8 +284,8 @@ const Index: React.FC = () => {
                 losing an important part of their independence.
               </p>
               <p>
-                That conversation became the starting point for the Digital Activities of Daily Living
-                (DADL) Assessment and Rehabilitation Platform. We asked whether assessing DADLs could
+                That conversation became the starting point for DIAL - Digital Independence Assessment
+                &amp; Learning. We asked whether assessing digital independence could
                 capture functional outcomes that conventional neurological scores and examinations might miss.
               </p>
               <p>
